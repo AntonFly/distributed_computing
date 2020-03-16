@@ -9,96 +9,102 @@
 #include "ipc.h"
 #include "log.h"
 
-void close_pipes_that_dont_belong_to_us();
+void close_other_pipes();
+
+enum {
+    MAX_PROCESSES = 10,
+};
+
+local_id my_id;
+size_t processes;
+size_t reader[MAX_PROCESSES][MAX_PROCESSES];
+size_t writer[MAX_PROCESSES][MAX_PROCESSES];
 
 int main(int argc, char const *argv[]) {
-    size_t num_children;
+    size_t children;
 
     if (argc == 3 && strcmp(argv[1], "-p") == 0) {
-        num_children = strtol(argv[2], NULL, 10);
+        children = strtol(argv[2], NULL, 10);
     } else {
-        fprintf(stderr, "Error: Key '-p NUMBER_OF_CHILDREN' is mandatory\n");
+        fprintf(stderr, "Fail: Key '-p NUMBER_OF_CHILDREN' is necessary\n");
         return 1;
     }
 
-    if (num_children >= MAX_PROCESSES) {
-        fprintf(stderr, "Error: Too many children requested.\n");
+    if (children > 10) {
+        fprintf(stderr, "Fail: Max mount of children is 9.\n");
         return 1;
     }
 
-    num_processes = num_children + 1;
+    processes = children + 1;
 
-    for (size_t source = 0; source < num_processes; source++) {
-        for (size_t destination = 0; destination < num_processes;
-             destination++) {
-            if (source != destination) {
-                int fildes[2];
-                pipe(fildes);
-                reader[source][destination] = fildes[0];
-                writer[source][destination] = fildes[1];
+    for (size_t src = 0; src < processes; src++) {
+        for (size_t dest = 0; dest < processes;
+             dest++) {
+            if (src != dest) {
+                int pipefd[2];
+                pipe(pipefd);
+                reader[src][dest] = pipefd[0];
+                writer[src][dest] = pipefd[1];
             }
         }
     }
 
     log_init();
 
-    pid_t process_pids[num_children];
-    process_pids[PARENT_ID] = getpid();
+    pid_t pids[children];
+    pids[PARENT_ID] = getpid();
 
-    for (size_t id = 1; id <= num_children; id++) {
+    for (size_t id = 1; id <= children; id++) {
         int child_pid = fork();
         if (child_pid > 0) {
             my_id = PARENT_ID;
-            process_pids[id] = child_pid;
+            pids[id] = child_pid;
         } else {
             my_id = id;
             break;
         }
     }
 
-    close_pipes_that_dont_belong_to_us();
+    close_other_pipes();
 
     if (my_id != PARENT_ID) {
-        Message msg = {
-            .s_header ={.s_magic = MESSAGE_MAGIC,.s_type = STARTED,},
-        };
+        Message msg = {.s_header ={.s_magic = MESSAGE_MAGIC,.s_type = STARTED,},};
         sprintf(msg.s_payload, log_started_fmt, my_id, getpid(), getppid());
         msg.s_header.s_payload_len = strlen(msg.s_payload);
         send_multicast(NULL, &msg);
-        log_started();
+//        log_started();
+        log_msg('s');
     }
 
-    for (size_t i = 1; i <= num_children; i++) {
+    for (size_t i = 1; i <= children; i++) {
         Message msg;
-        if (i == my_id) {
-            continue;
+        if (i != my_id) {
+            receive(NULL, i, &msg);
         }
-        receive(NULL, i, &msg);
-    }
-    log_received_all_started();
 
+    }
+//    log_received_all_started();
+    log_msg('a');
     if (my_id != PARENT_ID) {
-        Message msg = {
-            .s_header ={.s_magic = MESSAGE_MAGIC, .s_type = DONE,},
-        };
+        Message msg = {.s_header ={.s_magic = MESSAGE_MAGIC, .s_type = DONE,},};
         sprintf(msg.s_payload, log_done_fmt, my_id);
         msg.s_header.s_payload_len = strlen(msg.s_payload);
         send_multicast(NULL, &msg);
-        log_done();
+        log_msg('d');
     }
 
-    for (size_t i = 1; i <= num_children; i++) {
+    for (size_t i = 1; i <= children; i++) {
         Message msg;
-        if (i == my_id) {
-            continue;
+        if (i != my_id) {
+            receive(NULL, i, &msg);
         }
-        receive(NULL, i, &msg);
+
     }
-    log_received_all_done();
+    log_msg('r');
 
     if (my_id == PARENT_ID) {
-        for (size_t i = 1; i <= num_processes; i++) {
-            waitpid(process_pids[i], NULL, 0);
+        for (size_t i = 1; i <= processes; i++) {
+            waitpid(pids[i], NULL, 0);
         }
     }
 
@@ -106,20 +112,20 @@ int main(int argc, char const *argv[]) {
     return 0;
 }
 
-void close_pipes_that_dont_belong_to_us() {
-    for (size_t source = 0; source < num_processes; source++) {
-        for (size_t destination = 0; destination < num_processes;
-             destination++) {
-            if (source != my_id && destination != my_id &&
-                source != destination) {
-                close(writer[source][destination]);
-                close(reader[source][destination]);
+void close_other_pipes() {
+    for (size_t src = 0; src < processes; src++) {
+        for (size_t dest = 0; dest < processes;
+             dest++) {
+            if (src != my_id && dest != my_id &&
+                src != dest) {
+                close(writer[src][dest]);
+                close(reader[src][dest]);
             }
-            if (source == my_id && destination != my_id) {
-                close(reader[source][destination]);
+            if (src == my_id && dest != my_id) {
+                close(reader[src][dest]);
             }
-            if (destination == my_id && source != my_id) {
-                close(writer[source][destination]);
+            if (dest == my_id && src != my_id) {
+                close(writer[src][dest]);
             }
         }
     }

@@ -3,7 +3,16 @@
 #include "io.h"
 #include "stdio.h"
 
-static size_t read_exact(size_t fd, void *buf, size_t nbytes);
+enum {
+    MAX_PROCESSES = 10,
+};
+
+local_id my_id;
+size_t processes;
+size_t reader[MAX_PROCESSES][MAX_PROCESSES];
+size_t writer[MAX_PROCESSES][MAX_PROCESSES];
+
+static size_t read_exact(size_t fd, void *buf, size_t num_bytes);
 
 typedef enum {
     INVALID_PEER = 1,
@@ -11,7 +20,7 @@ typedef enum {
 } IpcError;
 
 int send(void *self, local_id dst, const Message *msg) {
-    if (dst >= num_processes) {
+    if (dst >= processes) {
         return INVALID_PEER;
     }
     if (msg->s_header.s_magic != MESSAGE_MAGIC) {
@@ -24,7 +33,7 @@ int send(void *self, local_id dst, const Message *msg) {
 }
 
 int send_multicast(void *self, const Message *msg) {
-    for (local_id dst = 0; dst < num_processes; dst++) {
+    for (local_id dst = 0; dst < processes; dst++) {
         if (dst != my_id) {
             int result = send(self, dst, msg);
             if (result > 0) {
@@ -36,7 +45,7 @@ int send_multicast(void *self, const Message *msg) {
 }
 
 int receive(void *self, local_id from, Message *msg) {
-    if (from >= num_processes) {
+    if (from >= processes) {
         return INVALID_PEER;
     }
 
