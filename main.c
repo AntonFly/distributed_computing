@@ -30,7 +30,7 @@ int main(int argc, char const *argv[]) {
         return 1;
     }
 
-    if (children > 10) {
+    if (children > 9) {
         fprintf(stderr, "Fail: Max mount of children is 9.\n");
         return 1;
     }
@@ -38,13 +38,16 @@ int main(int argc, char const *argv[]) {
     processes = children + 1;
 
     for (size_t src = 0; src < processes; src++) {
-        for (size_t dest = 0; dest < processes;
-             dest++) {
+        for (size_t dest = src; dest < processes; dest++) {
             if (src != dest) {
-                int pipefd[2];
-                pipe(pipefd);
-                reader[src][dest] = pipefd[0];
-                writer[src][dest] = pipefd[1];
+                int pipefd_original[2];
+                pipe(pipefd_original);
+                reader[src][dest] = pipefd_original[0];
+                writer[src][dest] = pipefd_original[1];
+                int pipefd_reverse[2];
+                pipe(pipefd_reverse);
+                reader[dest][src] = pipefd_reverse[0];
+                writer[dest][src] = pipefd_reverse[1];
             }
         }
     }

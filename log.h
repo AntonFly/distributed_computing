@@ -31,19 +31,6 @@ void log_printf(const char *format, ...) {
     va_end(va);
 }
 
-//void log_started() {
-//    pid_t pid = getpid();
-//    pid_t parent_pid = getppid();
-//    log_printf(log_started_fmt, my_id, pid, parent_pid);
-//}
-//
-//void log_received_all_started() {
-//    log_printf(log_received_all_started_fmt, my_id);
-//}
-//
-//void log_done() {
-//    log_printf(log_done_fmt, my_id);
-//}
 
 void log_msg(char key){
     pid_t pid = getpid();
