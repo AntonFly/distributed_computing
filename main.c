@@ -1,51 +1,62 @@
+#include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
 
-#include "io.h"
+#include "banking.h"
 #include "ipc.h"
-#include "log.h"
+#include "logging.h"
+#include "process.h"
+#include "messages.h"
+#include "debug.h"
 
-void close_other_pipes();
-
-enum {
-    MAX_PROCESSES = 10,
-};
-
-local_id my_id;
-size_t processes;
-size_t reader[MAX_PROCESSES][MAX_PROCESSES];
-size_t writer[MAX_PROCESSES][MAX_PROCESSES];
 
 int main(int argc, char const *argv[]) {
-    size_t children;
+    Process *self = &myself;
 
-    if (argc == 3 && strcmp(argv[1], "-p") == 0) {
+    if (argc >= 3 && strcmp(argv[1], "-p") == 0) {
         children = strtol(argv[2], NULL, 10);
+        processes = children + 1;
+
+        if (children > 9) {
+            fprintf(stderr, "Fail: Max mount of children is 9.\n");
+            return 1;
+        }
+
+        if (argc != 3 + children) {
+            fprintf(stderr, "Fail: Expected %ld state after `%s %s'\n",
+                    children, argv[1], argv[2]);
+            return 1;
+        }
+
+        for (size_t i = 1; i <= children; i++) {
+            states[i] = strtol(argv[2 + i], NULL, 10);
+        }
     } else {
         fprintf(stderr, "Fail: Key '-p NUMBER_OF_CHILDREN' is necessary\n");
         return 1;
     }
 
-    if (children > 9) {
-        fprintf(stderr, "Fail: Max mount of children is 9.\n");
-        return 1;
-    }
-
-    processes = children + 1;
-
+    // Create file descriptors.
     for (size_t src = 0; src < processes; src++) {
         for (size_t dest = src; dest < processes; dest++) {
             if (src != dest) {
                 int pipefd_original[2];
                 pipe(pipefd_original);
+                fcntl(pipefd_original[0], F_SETFL, O_NONBLOCK);
+                fcntl(pipefd_original[1], F_SETFL, O_NONBLOCK);
                 reader[src][dest] = pipefd_original[0];
                 writer[src][dest] = pipefd_original[1];
                 int pipefd_reverse[2];
                 pipe(pipefd_reverse);
+                fcntl(pipefd_reverse[0], F_SETFL, O_NONBLOCK);
+                fcntl(pipefd_reverse[1], F_SETFL, O_NONBLOCK);
                 reader[dest][src] = pipefd_reverse[0];
                 writer[dest][src] = pipefd_reverse[1];
             }
@@ -54,82 +65,70 @@ int main(int argc, char const *argv[]) {
 
     log_init();
 
-    pid_t pids[children];
+//    pid_t pids[children];
     pids[PARENT_ID] = getpid();
 
+    // Create children processes.
     for (size_t id = 1; id <= children; id++) {
         int child_pid = fork();
         if (child_pid > 0) {
-            my_id = PARENT_ID;
+            self->id = PARENT_ID;
             pids[id] = child_pid;
-        } else {
-            my_id = id;
+        }  else if (child_pid == 0) {
+            self->id = id;
             break;
+        } else {
+            fprintf(stderr, "Fail: Forking failed");
+            perror("main");
+            return 1;
         }
     }
 
-    close_other_pipes();
 
-    if (my_id != PARENT_ID) {
-        Message msg = {.s_header ={.s_magic = MESSAGE_MAGIC,.s_type = STARTED,},};
-        sprintf(msg.s_payload, log_started_fmt, my_id, getpid(), getppid());
-        msg.s_header.s_payload_len = strlen(msg.s_payload);
-        send_multicast(NULL, &msg);
-//        log_started();
-        log_msg('s');
+    close_other_pipes(self);
+
+
+    if (self->id == PARENT_ID) {
+        go_parent(self);
+    } else {
+        go_child(self, states[self->id]);
     }
 
-    for (size_t i = 1; i <= children; i++) {
-        Message msg;
-        if (i != my_id) {
-            receive(NULL, i, &msg);
-        }
-
-    }
-//    log_received_all_started();
-    log_msg('a');
-    if (my_id != PARENT_ID) {
-        Message msg = {.s_header ={.s_magic = MESSAGE_MAGIC, .s_type = DONE,},};
-        sprintf(msg.s_payload, log_done_fmt, my_id);
-        msg.s_header.s_payload_len = strlen(msg.s_payload);
-        send_multicast(NULL, &msg);
-        log_msg('d');
-    }
-
-    for (size_t i = 1; i <= children; i++) {
-        Message msg;
-        if (i != my_id) {
-            receive(NULL, i, &msg);
-        }
-
-    }
-    log_msg('r');
-
-    if (my_id == PARENT_ID) {
-        for (size_t i = 1; i <= processes; i++) {
-            waitpid(pids[i], NULL, 0);
-        }
-    }
-
-    log_close();
+    log_close(self);
     return 0;
 }
 
-void close_other_pipes() {
-    for (size_t src = 0; src < processes; src++) {
-        for (size_t dest = 0; dest < processes;
-             dest++) {
-            if (src != my_id && dest != my_id &&
-                src != dest) {
-                close(writer[src][dest]);
-                close(reader[src][dest]);
-            }
-            if (src == my_id && dest != my_id) {
-                close(reader[src][dest]);
-            }
-            if (dest == my_id && src != my_id) {
-                close(writer[src][dest]);
-            }
+void transfer(void *parent_data, local_id src, local_id dst, balance_t amount) {
+    Process *self = parent_data;
+
+    DEBUG("Process %d: Transferring $%d from #%d to #%d\n", self->id, amount, src, dst);
+    Message message;
+    {
+        message.s_header = (MessageHeader) {
+                .s_local_time = get_physical_time(),
+                .s_magic =MESSAGE_MAGIC,
+                .s_type=TRANSFER,
+                .s_payload_len = sizeof(TransferOrder),
+        };
+        TransferOrder order = {
+                .s_src = src,
+                .s_dst = dst,
+                .s_amount = amount,
+        };
+        memcpy(&message.s_payload, &order, sizeof(TransferOrder));
+        send(parent_data, src, &message);
+    }
+
+    DEBUG("Process %d: Waiting for ACK from %d\n", self->id, dst);
+    {
+        receive(parent_data, dst, &message);
+        if (message.s_header.s_type != ACK) {
+            fprintf(stderr,
+                    "\u26A0 "  // Unicode WARNING SIGN
+                    "Warning: Process %d expected message ACK [%d] "
+                    "from process %d, "
+                    "got message with type [%d]\n",
+                    self->id, ACK, dst, message.s_header.s_type);
         }
     }
 }
