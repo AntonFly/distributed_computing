@@ -7,7 +7,7 @@
 //#define ENABLE_DEBUGGING
 
 #ifdef ENABLE_DEBUGGING
-#define DEBUG(...) fprintf(stderr, "/DEBUG/ " __VA_ARGS__)
+#define DEBUG(...) fprintf(stdout, "/DEBUG/ " __VA_ARGS__)
 #else
 #define DEBUG(...) if (0) fprintf(stderr, "/DEBUG/" __VA_ARGS__)
 #endif // ENABLE_DEBUGGING

@@ -19,5 +19,5 @@ add_executable(peer
         logging.c
         debug.h)
 
-find_library(libruntime libruntime.so paths ${PROJECT_SOURCE_DIR}/lib64/)
-#target_link_libraries(peer ${libruntime})
+find_library(libruntime lib64/libruntime.so paths ${PROJECT_SOURCE_DIR}/lib64/)
+#target_link_libraries(lab5 ${libruntime})

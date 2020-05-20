@@ -50,18 +50,18 @@ void log_msg(char key,Process *self){
     switch (key){
         case 's':
             log_printf(
-                    log_started_fmt, get_physical_time, self->id,
+                    log_started_fmt, get_lamport_time(), self->id,
                     pid, parent_pid,
                     self->history.s_history[self->history.s_history_len - 1].s_balance);
             break;
         case 'a':
-            log_printf(log_received_all_started_fmt, get_physical_time(), self->id);
+            log_printf(log_received_all_started_fmt, get_lamport_time(), self->id);
             break;
         case 'd':
-            log_printf(log_done_fmt, get_physical_time(), self->id);
+            log_printf(log_done_fmt, get_lamport_time(), self->id);
             break;
         case 'r':
-            log_printf(log_received_all_done_fmt, get_physical_time(), self->id);
+            log_printf(log_received_all_done_fmt, get_lamport_time(), self->id);
     }
 }
 

@@ -11,15 +11,19 @@
 #include "debug.h"
 
 void started_all(Process *self) {
+    self->lamport_time++;
+
     Message msg = {
-        .s_header =
-            {
-                .s_magic = MESSAGE_MAGIC,
-                .s_type = STARTED,
-            },
+            .s_header =
+                    {
+                            .s_magic = MESSAGE_MAGIC,
+                            .s_type = STARTED,
+                            .s_local_time = get_lamport_time(),
+                            .s_payload_len = 0,
+                    },
     };
 
-    timestamp_t time = get_physical_time();
+    timestamp_t time = get_lamport_time();
     printf_log_msg(
         &msg, log_started_fmt, time, self->id, getpid(),
         getppid(),
@@ -36,19 +40,27 @@ void receive_started_all(Process *self) {
             continue;
         }
         receive(&myself, i, &msg);
+        if (msg.s_header.s_type != STARTED) {
+            fprintf(stderr, "Process %d expect message of type %d (STARTED), got message type %d\n", self->id,
+                    STARTED, msg.s_header.s_type);
+        }
+        up_time(self, msg.s_header.s_local_time);
     }
     log_msg('a',self);
 }
 
 void done_all(Process *self) {
+    self->lamport_time++;
+    timestamp_t time = get_lamport_time();
     Message msg = {
         .s_header =
             {
                 .s_magic = MESSAGE_MAGIC,
                 .s_type = DONE,
+                .s_local_time = time,
+                .s_payload_len = 0,
             },
     };
-    timestamp_t time = get_physical_time();
     printf_log_msg(&msg, log_done_fmt, time, self->id,
                           self->history.s_history[time].s_balance);
     msg.s_header.s_payload_len = strlen(msg.s_payload);
@@ -62,18 +74,24 @@ void receive_done_all(Process *self) {
         }
         Message msg;
         receive(&myself, i, &msg);
+        if (msg.s_header.s_type != DONE) {
+            fprintf(stderr, "Process %d expect message of type %d (DONE), got message type %d\n", self->id,
+                    DONE, msg.s_header.s_type);
+        }
+        up_time(self, msg.s_header.s_local_time);
     }
     log_msg('d',self);
 }
 
 void stop_all(Process *self) {
+    self->lamport_time++;
     Message msg = {
         .s_header =
             {
                 .s_magic = MESSAGE_MAGIC,
                 .s_type = STOP,
                 .s_payload_len = 0,
-                .s_local_time = get_physical_time(),
+                .s_local_time = get_lamport_time(),
             },
     };
     send_multicast(&myself, &msg);
@@ -81,7 +99,8 @@ void stop_all(Process *self) {
 
 void history_master(Process *self) {
 
-    self->history.s_history_len = get_physical_time() + 1;
+    self->lamport_time++;
+    self->history.s_history_len = get_lamport_time() + 1;
     size_t size_of_history = sizeof(local_id) +
                              sizeof(uint8_t) +
                              self->history.s_history_len * sizeof(BalanceState);
@@ -90,7 +109,7 @@ void history_master(Process *self) {
         .s_header = {
             .s_magic = MESSAGE_MAGIC,
             .s_type = BALANCE_HISTORY,
-            .s_local_time = get_physical_time(),
+            .s_local_time = get_lamport_time(),
             .s_payload_len = size_of_history,
         }
     };
@@ -112,6 +131,7 @@ void receive_balance_histories(Process *self) {
         } else {
             BalanceHistory *their_history = (BalanceHistory *) &msg.s_payload;
             self->all_history.s_history[child - 1] = *their_history;
+            up_time(self, msg.s_header.s_local_time);
         }
     }
 }

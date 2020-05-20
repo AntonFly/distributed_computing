@@ -6,15 +6,20 @@
 #include <unistd.h>
 #include "ipc.h"
 #include "process.h"
+static size_t try_read(size_t fd, void *buf, size_t num_bytes);
 
 static size_t read_exact(size_t fd, void *buf, size_t num_bytes);
+
+inline void not_block(size_t fd);
+
+inline void block(size_t fd);
 
 typedef enum {
     INVALID_PEER = 1,
     INVALID_MAGIC,
 } IpcError;
 
-int send(void *self_void, local_id dst, const Message *msg) {
+int send(void *self_void, local_id dst, Message const *msg) {
     Process *self = self_void;
 
     if (dst >= processes) {
@@ -23,6 +28,9 @@ int send(void *self_void, local_id dst, const Message *msg) {
     if (msg->s_header.s_magic != MESSAGE_MAGIC) {
         return INVALID_MAGIC;
     }
+
+    self->lamport_time++;
+
     write(writer[self->id][dst], &msg->s_header, sizeof(MessageHeader));
     write(writer[self->id][dst], &msg->s_payload, msg->s_header.s_payload_len);
     return 0;
@@ -68,41 +76,34 @@ int receive_any(void *self_void, Message *msg) {
         }
 
         size_t src_file = reader[src][self->id];
-        unsigned int flags = fcntl(src_file, F_GETFL, 0);
-        fcntl(src_file, F_SETFL, flags | O_NONBLOCK);
-        int num_bytes = read(src_file, &msg->s_header, 1);
-        switch (num_bytes) {
-            case -1:
-                nanosleep((const struct timespec[]) {{0, 1000L}}, NULL);
-                continue;
-            case 0: {
-                nanosleep((const struct timespec[]) {{0, 1000L}}, NULL);
-                continue;
-            }
-            default:
-                break;
+        int num_bytes_read = try_read(src_file, &msg->s_header, sizeof(MessageHeader));
+        if (num_bytes_read == -1 && errno == EAGAIN) {
+            // Would block, go to next
+            nanosleep((const struct timespec[]) {{0, 1000L}}, NULL);
+            continue;
+        } else if (num_bytes_read == 0) {
+            // EOF reached
+            nanosleep((const struct timespec[]) {{0, 1000L}}, NULL);
+            continue;
+        } else {
+            // Header is read fully, continue reading
+            read_exact(src_file, msg->s_payload, msg->s_header.s_payload_len);
+            return 0;
         }
-
-        fcntl(src_file, F_SETFL, flags & !O_NONBLOCK);
-
-        read(src_file, ((char *) &msg->s_header) + 1, sizeof(MessageHeader) - 1);
-        read(src_file, msg->s_payload, msg->s_header.s_payload_len);
-
-        fcntl(src_file, F_SETFL, flags | O_NONBLOCK);
-        return 0;
     }
 }
 
-/**
- * Attempts to read the exact number of bytes from file into the buffer.
- *
- * Unlike read(3P), this function will either read the exact given number of
- * bytes or exit with an error.
- */
-static size_t read_exact(size_t fd, void *buf, size_t num_bytes) {
+inline void not_block(size_t fd) {
+    unsigned int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+inline void block(size_t fd) {
     unsigned int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags & !O_NONBLOCK);
+}
 
+static size_t read_exact(size_t fd, void *buf, size_t num_bytes) {
     size_t offset = 0;
     size_t remaining = num_bytes;
 
@@ -111,11 +112,41 @@ static size_t read_exact(size_t fd, void *buf, size_t num_bytes) {
         if (num_bytes_read > 0) {
             remaining -= num_bytes_read;
             offset += num_bytes_read;
+        } else if (num_bytes_read == -1 && errno == EAGAIN) {
+            continue;
         } else {
             return -1;
         }
     }
 
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    return offset;
+}
+
+size_t try_read(size_t fd, void *buf, size_t num_bytes) {
+    size_t offset = 0;
+    size_t left = num_bytes;
+
+    {
+        int bytes = read(fd, ((char *) buf) + offset, left);
+        if (bytes > 0) {
+            left -= bytes;
+            offset += bytes;
+        } else {
+            return bytes;
+        }
+    }
+
+    while (left > 0) {
+        int bytes = read(fd, ((char *) buf) + offset, left);
+        if (bytes > 0) {
+            left -= bytes;
+            offset += bytes;
+        } else if (bytes == -1 && errno == EAGAIN) {
+            continue;
+        } else {
+            return bytes;
+        }
+    }
+
     return offset;
 }

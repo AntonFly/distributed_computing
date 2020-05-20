@@ -17,6 +17,7 @@ typedef struct {
     BalanceHistory history;
     local_id id;
     AllHistory all_history;
+    timestamp_t lamport_time;
 } Process;
 
 enum {
@@ -33,12 +34,16 @@ size_t writer[MAX_PROCESSES][MAX_PROCESSES];
 pid_t pids[MAX_PROCESSES];
 balance_t states[MAX_PROCESSES];
 
-void initialize_history(Process *self, balance_t initial_balance);
+void init_history(Process *self, balance_t initial_balance);
 
 void go_parent(Process *self);
 
 void go_child(Process *self, balance_t initial_balance);
 
 void close_other_pipes(Process *self);
+
+timestamp_t get_lamport_time();
+
+void up_time(Process *self, timestamp_t their_time);
 
 #endif

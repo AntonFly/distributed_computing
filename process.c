@@ -12,6 +12,8 @@
 
 void transfer_order(Process *self, Message *mesg);
 
+int max(int lhs, int rhs);
+
 void init_history(Process *self, balance_t balance) {
     self->history.s_id = self->id;
     self->history.s_history_len = 1;
@@ -68,22 +70,28 @@ void go_child(Process *self, balance_t initial_balance) {
 
     receive_started_all(self);
 
-    bool b = false;
     size_t left = children - 1;
 
-    while (!b) {
+    while (left>0) {
         Message mesg;
         receive_any(self, &mesg);
+        up_time(self, mesg.s_header.s_local_time);
         MessageType mesg_type = mesg.s_header.s_type;
         switch (mesg_type) {
             case STOP:
-                b = true;
+                if (mesg.s_header.s_local_time > self->lamport_time) {
+                    self->lamport_time = mesg.s_header.s_local_time;
+                }
+                done_all(self);
                 break;
             case TRANSFER:
                 transfer_order(self, &mesg);
                 break;
             case DONE:
                 left--;
+                if (mesg.s_header.s_local_time > self->lamport_time) {
+                    self->lamport_time = mesg.s_header.s_local_time;
+                }
                 break;
             default:
                 fprintf(
@@ -95,29 +103,6 @@ void go_child(Process *self, balance_t initial_balance) {
         }
     }
 
-    done_all(self);
-
-    while (left > 0) {
-        Message message;
-        receive_any(self, &message);
-        MessageType message_type = message.s_header.s_type;
-
-        switch (message_type) {
-            case TRANSFER:
-                transfer_order(self, &message);
-                break;
-            case DONE:
-                left--;
-                break;
-            default:
-                fprintf(
-                        stderr,
-                        "NOTICE: Process %d received unrecognized message type = "
-                        "%d\n",
-                        self->id, message_type);
-                break;
-        }
-    }
 
     log_msg('d',self);
 
@@ -126,39 +111,75 @@ void go_child(Process *self, balance_t initial_balance) {
 
 void transfer_order(Process *self, Message *mesg)  {
     TransferOrder *order = (TransferOrder *) &(mesg->s_payload);
-    timestamp_t transfer_t = get_physical_time();
+    timestamp_t transfer_sent_time = mesg->s_header.s_local_time;
     BalanceHistory *history = &self->history;
     balance_t delta = 0;
 
     if (order->s_src == self->id) {
-        delta = -order->s_amount;
+        up_time(self, transfer_sent_time);
+        timestamp_t redirection_time = get_lamport_time();
 
+        // Decrease our balance
+        for (timestamp_t time = redirection_time; time <= MAX_T; time++) {
+            history->s_history[time].s_balance -= order->s_amount;
+        }
+
+        // Redirect TRANSFER to order receiver
+        mesg->s_header.s_local_time = redirection_time;
         send(&myself, order->s_dst, mesg);
 
-        log_printf(log_transfer_out_fmt, get_physical_time(), self->id, order->s_amount, order->s_dst);
+        log_printf(log_transfer_out_fmt, redirection_time, self->id, order->s_amount, order->s_dst);
+
 
     } else if (order->s_dst == self->id) {
         delta = +order->s_amount;
+
+        up_time(self, transfer_sent_time);
+        timestamp_t transfer_received_time = get_lamport_time();
+
+        // Increase our balance
+        for (timestamp_t time = transfer_sent_time; time < transfer_received_time; time++) {
+            history->s_history[time].s_balance_pending_in += delta;
+        }
+
+        for (timestamp_t time = transfer_received_time; time <= MAX_T; time++) {
+            history->s_history[time].s_balance += delta;
+        }
+
+        // Set transfer complete at time of receiving
+
 
         Message msg;
         msg.s_header = (MessageHeader) {
                 .s_magic = MESSAGE_MAGIC,
                 .s_type = ACK,
-                .s_local_time = transfer_t,
+                .s_local_time = get_lamport_time(),
                 .s_payload_len = 0,
         };
+        log_printf(log_transfer_in_fmt, get_lamport_time(), self->id, order->s_amount, order->s_src);
         send(&myself, PARENT_ID, &msg);
 
-        log_printf(log_transfer_in_fmt, get_physical_time(), self->id, order->s_amount, order->s_src);
 
-    } else {
-    }
-
-    if (transfer_t >= history->s_history_len) {
-        history->s_history_len = transfer_t + 1;
-    }
-
-    for (timestamp_t time = transfer_t; time <= MAX_T; time++) {
-        history->s_history[time].s_balance += delta;
     }
 }
+
+int max(int lhs, int rhs) {
+    if (lhs > rhs) {
+        return lhs;
+    }
+    return rhs;
+}
+
+timestamp_t get_lamport_time() {
+    return myself.lamport_time;
+}
+
+void up_time(Process *self, timestamp_t their_time) {
+    timestamp_t old_time = self->lamport_time;
+    if (their_time > self->lamport_time) {
+        self->lamport_time = their_time;
+    }
+    self->lamport_time++;
+    DEBUG("Process %d: Time %d -> %d\n", self->id, old_time, self->lamport_time);
+}
+
