@@ -17,7 +17,9 @@ add_executable(peer
         messages.c
         process.c
         logging.c
-        debug.h)
+        debug.h
+        critical.c
+        critical.h priority.h priority.c self_conversion.h)
 
 find_library(libruntime lib64/libruntime.so paths ${PROJECT_SOURCE_DIR}/lib64/)
 #target_link_libraries(lab5 ${libruntime})

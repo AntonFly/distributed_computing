@@ -12,12 +12,19 @@
 #include "banking.h"
 
 #include "ipc.h"
+#include "priority.h"
+
+#define CONVERT_SELF_TO(ref_type, var_name) ref_type* self = ((ref_type *) var_name)
 
 typedef struct {
     BalanceHistory history;
     local_id id;
     AllHistory all_history;
     timestamp_t lamport_time;
+    bool mutual_exclusion;
+    int done_received;
+    PriorityQueue request_queue;
+
 } Process;
 
 enum {
@@ -38,12 +45,18 @@ void init_history(Process *self, balance_t initial_balance);
 
 void go_parent(Process *self);
 
-void go_child(Process *self, balance_t initial_balance);
+void go_child(Process *self);
 
 void close_other_pipes(Process *self);
 
 timestamp_t get_lamport_time();
 
+timestamp_t lift_and_get_local_time(Process *self, timestamp_t their_time);
+
+timestamp_t increment_and_get_local_time(Process *self);
+
 void up_time(Process *self, timestamp_t their_time);
+
+const char *msg_type_to_string(MessageType type);
 
 #endif

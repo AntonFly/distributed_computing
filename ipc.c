@@ -19,8 +19,23 @@ typedef enum {
     INVALID_MAGIC,
 } IpcError;
 
-int send(void *self_void, local_id dst, Message const *msg) {
-    Process *self = self_void;
+//const char *MESSAGE_TYPE_STRINGS[] = {
+//        "STARTED",
+//        "DONE",
+//        "ACK",
+//        "STOP",
+//        "TRANSFER",
+//        "BALANCE_HISTORY",
+//        "CS_REQUEST",
+//        "CS_REPLY",
+//        "CS_RELEASE"
+//};
+
+//const char *msg_type_to_string(MessageType type);
+
+
+
+int send_inner(Process *self, local_id dst, Message const *msg) {
 
     if (dst >= processes) {
         return INVALID_PEER;
@@ -36,11 +51,15 @@ int send(void *self_void, local_id dst, Message const *msg) {
     return 0;
 }
 
+int send(void *self_void, local_id dst, Message const *msg) {
+    return send_inner(self_void, dst, msg);
+}
+
 int send_multicast(void *self_void, const Message *msg) {
     Process *self = self_void;
     for (local_id dst = 0; dst < processes; dst++) {
         if (dst != self->id) {
-            int result = send(self, dst, msg);
+            int result = send_inner(self, dst, msg);
             if (result > 0) {
                 fprintf(stderr, "Fail: Process %d fail to send_multicast when send to %d!\n", self->id, dst);
                 return result;
@@ -88,7 +107,7 @@ int receive_any(void *self_void, Message *msg) {
         } else {
             // Header is read fully, continue reading
             read_exact(src_file, msg->s_payload, msg->s_header.s_payload_len);
-            return 0;
+            return src;
         }
     }
 }
@@ -150,3 +169,7 @@ size_t try_read(size_t fd, void *buf, size_t num_bytes) {
 
     return offset;
 }
+
+//const char *msg_type_to_string(MessageType type) {
+//    return MESSAGE_TYPE_STRINGS[type];
+//}

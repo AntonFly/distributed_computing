@@ -20,27 +20,46 @@
 
 int main(int argc, char const *argv[]) {
     Process *self = &myself;
+    self->mutual_exclusion = false;
 
-    if (argc >= 3 && strcmp(argv[1], "-p") == 0) {
-        children = strtol(argv[2], NULL, 10);
-        processes = children + 1;
+    if (argc < 3) {
+        ERROR("Please provide `-p NUM_CHILDREN'");
+        return 1;
+    }
 
-        if (children > 9) {
-            fprintf(stderr, "Fail: Max mount of children is 9.\n");
+    bool arg_p_met = false;
+
+    int argi = 1;
+    while (argi < argc) {
+        if (strcmp(argv[argi], "--mutexl") == 0) {
+            self->mutual_exclusion = true;
+
+        } else if (strcmp(argv[argi], "-p") == 0) {
+            argi++;
+            if (argc <= argi) {
+                ERROR("Please provide number of children after `-p'");
+                return 1;
+            } else {
+                children = strtol(argv[argi], NULL, 10);
+                processes = children + 1;
+
+                if (children >= MAX_PROCESSES) {
+                    ERROR("Too many children requested.");
+                    return 1;
+                }
+
+                arg_p_met = true;
+            }
+
+        } else {
+            ERROR("Expected `-p NUM_CHILDREN' or `--mutexl', found `%s'", argv[argi]);
             return 1;
         }
+        argi++;
+    }
 
-        if (argc != 3 + children) {
-            fprintf(stderr, "Fail: Expected %ld state after `%s %s'\n",
-                    children, argv[1], argv[2]);
-            return 1;
-        }
-
-        for (size_t i = 1; i <= children; i++) {
-            states[i] = strtol(argv[2 + i], NULL, 10);
-        }
-    } else {
-        fprintf(stderr, "Fail: Key '-p NUMBER_OF_CHILDREN' is necessary\n");
+    if (!arg_p_met) {
+        ERROR("Option `-p NUM_CHILDREN' is not provided");
         return 1;
     }
 
@@ -106,7 +125,7 @@ int main(int argc, char const *argv[]) {
     if (self->id == PARENT_ID) {
         go_parent(self);
     } else {
-        go_child(self, states[self->id]);
+        go_child(self);
     }
 
     log_close(self);
@@ -143,12 +162,8 @@ void transfer(void *parent_data, local_id src, local_id dst, balance_t amount) {
         if (message.s_header.s_type == ACK) {
             up_time(self, message.s_header.s_local_time);
         } else{
-            fprintf(stderr,
-                    "\u26A0 "  // Unicode WARNING SIGN
-                    "Warning: Process %d expected message ACK [%d] "
-                    "from process %d, "
-                    "got message with type [%d]\n",
-                    self->id, ACK, dst, message.s_header.s_type);
+            NOTICE("Expected message ACK [%d] from process %d, but got message with type [%d]",
+                   ACK, dst, message.s_header.s_type);
         }
     }
 }

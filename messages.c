@@ -41,8 +41,10 @@ void receive_started_all(Process *self) {
         }
         receive(&myself, i, &msg);
         if (msg.s_header.s_type != STARTED) {
-            fprintf(stderr, "Process %d expect message of type %d (STARTED), got message type %d\n", self->id,
-                    STARTED, msg.s_header.s_type);
+//            fprintf(stderr, "Process %d expect message of type %d (STARTED), got message type %d\n", self->id,
+//                    STARTED, msg.s_header.s_type);
+            ERROR("Expected message of type %s, got message type %s",
+                msg_type_to_string(STARTED), msg_type_to_string(msg.s_header.s_type));
         }
         up_time(self, msg.s_header.s_local_time);
     }
@@ -75,63 +77,63 @@ void receive_done_all(Process *self) {
         Message msg;
         receive(&myself, i, &msg);
         if (msg.s_header.s_type != DONE) {
-            fprintf(stderr, "Process %d expect message of type %d (DONE), got message type %d\n", self->id,
-                    DONE, msg.s_header.s_type);
+            NOTICE("Expected message of type %s, got %s\n",
+                   msg_type_to_string(DONE), msg_type_to_string(msg.s_header.s_type));
         }
         up_time(self, msg.s_header.s_local_time);
     }
     log_msg('d',self);
 }
 
-void stop_all(Process *self) {
-    self->lamport_time++;
-    Message msg = {
-        .s_header =
-            {
-                .s_magic = MESSAGE_MAGIC,
-                .s_type = STOP,
-                .s_payload_len = 0,
-                .s_local_time = get_lamport_time(),
-            },
-    };
-    send_multicast(&myself, &msg);
-}
-
-void history_master(Process *self) {
-
-    self->lamport_time++;
-    self->history.s_history_len = get_lamport_time() + 1;
-    size_t size_of_history = sizeof(local_id) +
-                             sizeof(uint8_t) +
-                             self->history.s_history_len * sizeof(BalanceState);
-
-    Message msg = {
-        .s_header = {
-            .s_magic = MESSAGE_MAGIC,
-            .s_type = BALANCE_HISTORY,
-            .s_local_time = get_lamport_time(),
-            .s_payload_len = size_of_history,
-        }
-    };
-    memcpy(&msg.s_payload, &self->history, size_of_history);
-    send(self, PARENT_ID, &msg);
-}
-
-void receive_balance_histories(Process *self) {
-    self->all_history.s_history_len = children;
-    for (size_t child = 1; child <= children; child++) {
-        Message msg;
-        DEBUG("Waiting BALANCE_HISTORY from %lu\n", child);
-        receive(&myself, child, &msg);
-        int16_t msg_type = msg.s_header.s_type;
-        if (msg_type != BALANCE_HISTORY) {
-            fprintf(stderr,
-                    "Warning: Expected message typed %d (BALANCE_HISTORY), "
-                    "got %d \n", BALANCE_HISTORY, msg_type);
-        } else {
-            BalanceHistory *their_history = (BalanceHistory *) &msg.s_payload;
-            self->all_history.s_history[child - 1] = *their_history;
-            up_time(self, msg.s_header.s_local_time);
-        }
-    }
-}
+//void stop_all(Process *self) {
+//    self->lamport_time++;
+//    Message msg = {
+//        .s_header =
+//            {
+//                .s_magic = MESSAGE_MAGIC,
+//                .s_type = STOP,
+//                .s_payload_len = 0,
+//                .s_local_time = get_lamport_time(),
+//            },
+//    };
+//    send_multicast(&myself, &msg);
+//}
+//
+//void history_master(Process *self) {
+//
+//    self->lamport_time++;
+//    self->history.s_history_len = get_lamport_time() + 1;
+//    size_t size_of_history = sizeof(local_id) +
+//                             sizeof(uint8_t) +
+//                             self->history.s_history_len * sizeof(BalanceState);
+//
+//    Message msg = {
+//        .s_header = {
+//            .s_magic = MESSAGE_MAGIC,
+//            .s_type = BALANCE_HISTORY,
+//            .s_local_time = get_lamport_time(),
+//            .s_payload_len = size_of_history,
+//        }
+//    };
+//    memcpy(&msg.s_payload, &self->history, size_of_history);
+//    send(self, PARENT_ID, &msg);
+//}
+//
+//void receive_balance_histories(Process *self) {
+//    self->all_history.s_history_len = children;
+//    for (size_t child = 1; child <= children; child++) {
+//        Message msg;
+//        DEBUG("Waiting BALANCE_HISTORY from %lu\n", child);
+//        receive(&myself, child, &msg);
+//        int16_t msg_type = msg.s_header.s_type;
+//        if (msg_type != BALANCE_HISTORY) {
+//            fprintf(stderr,
+//                    "Warning: Expected message typed %d (BALANCE_HISTORY), "
+//                    "got %d \n", BALANCE_HISTORY, msg_type);
+//        } else {
+//            BalanceHistory *their_history = (BalanceHistory *) &msg.s_payload;
+//            self->all_history.s_history[child - 1] = *their_history;
+//            up_time(self, msg.s_header.s_local_time);
+//        }
+//    }
+//}
