@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "ipc.h"
 #include "process.h"
+#include "messages.h"
 static size_t try_read(size_t fd, void *buf, size_t num_bytes);
 
 static size_t read_exact(size_t fd, void *buf, size_t num_bytes);
@@ -19,19 +20,6 @@ typedef enum {
     INVALID_MAGIC,
 } IpcError;
 
-//const char *MESSAGE_TYPE_STRINGS[] = {
-//        "STARTED",
-//        "DONE",
-//        "ACK",
-//        "STOP",
-//        "TRANSFER",
-//        "BALANCE_HISTORY",
-//        "CS_REQUEST",
-//        "CS_REPLY",
-//        "CS_RELEASE"
-//};
-
-//const char *msg_type_to_string(MessageType type);
 
 
 
@@ -170,6 +158,3 @@ size_t try_read(size_t fd, void *buf, size_t num_bytes) {
     return offset;
 }
 
-//const char *msg_type_to_string(MessageType type) {
-//    return MESSAGE_TYPE_STRINGS[type];
-//}

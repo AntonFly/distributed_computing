@@ -3,8 +3,12 @@
 
 #include "process.h"
 
-int request_cs(const Process *self_void);
+int request_critical(Process *self);
 
-int release_cs(const Process *self_void);
+int release_critical(Process *self);
+
+int request_cs(const void *self);
+
+int release_cs(const void *self);
 
 #endif //LAB1_CRITICAL_SECTION_H

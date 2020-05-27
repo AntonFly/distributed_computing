@@ -85,55 +85,15 @@ void receive_done_all(Process *self) {
     log_msg('d',self);
 }
 
-//void stop_all(Process *self) {
-//    self->lamport_time++;
-//    Message msg = {
-//        .s_header =
-//            {
-//                .s_magic = MESSAGE_MAGIC,
-//                .s_type = STOP,
-//                .s_payload_len = 0,
-//                .s_local_time = get_lamport_time(),
-//            },
-//    };
-//    send_multicast(&myself, &msg);
-//}
-//
-//void history_master(Process *self) {
-//
-//    self->lamport_time++;
-//    self->history.s_history_len = get_lamport_time() + 1;
-//    size_t size_of_history = sizeof(local_id) +
-//                             sizeof(uint8_t) +
-//                             self->history.s_history_len * sizeof(BalanceState);
-//
-//    Message msg = {
-//        .s_header = {
-//            .s_magic = MESSAGE_MAGIC,
-//            .s_type = BALANCE_HISTORY,
-//            .s_local_time = get_lamport_time(),
-//            .s_payload_len = size_of_history,
-//        }
-//    };
-//    memcpy(&msg.s_payload, &self->history, size_of_history);
-//    send(self, PARENT_ID, &msg);
-//}
-//
-//void receive_balance_histories(Process *self) {
-//    self->all_history.s_history_len = children;
-//    for (size_t child = 1; child <= children; child++) {
-//        Message msg;
-//        DEBUG("Waiting BALANCE_HISTORY from %lu\n", child);
-//        receive(&myself, child, &msg);
-//        int16_t msg_type = msg.s_header.s_type;
-//        if (msg_type != BALANCE_HISTORY) {
-//            fprintf(stderr,
-//                    "Warning: Expected message typed %d (BALANCE_HISTORY), "
-//                    "got %d \n", BALANCE_HISTORY, msg_type);
-//        } else {
-//            BalanceHistory *their_history = (BalanceHistory *) &msg.s_payload;
-//            self->all_history.s_history[child - 1] = *their_history;
-//            up_time(self, msg.s_header.s_local_time);
-//        }
-//    }
-//}
+Message construct_message_with_type(MessageType message_type) {
+    Message request_msg = {
+            .s_header = {
+                    .s_magic = MESSAGE_MAGIC,
+                    .s_type = message_type,
+                    .s_local_time = get_lamport_time(),
+                    .s_payload_len = 0,
+            },
+            .s_payload = "",
+    };
+    return request_msg;
+}

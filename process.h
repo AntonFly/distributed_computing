@@ -24,7 +24,7 @@ typedef struct {
     bool mutual_exclusion;
     int done_received;
     PriorityQueue request_queue;
-
+    bool is_defer[MAX_PROCESS_ID + 1];
 } Process;
 
 enum {

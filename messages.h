@@ -17,5 +17,5 @@ void receive_done_all(Process *self);
 //void receive_balance_histories(Process *self);
 
 //void history_master(Process *self);
-
+Message construct_message_with_type(MessageType message_type);
 #endif
