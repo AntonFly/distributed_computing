@@ -1,28 +1,46 @@
-#include <stdio.h>
 #include "process.h"
 #include "debug.h"
 #include "priority.h"
-#include "messages.h"
 
-void defer_reply(Process *self, local_id peer);
 
-void send_replies(Process *self);
+int available();
+
+static int forks[MAX_PROCESSES];
+static int dirty[MAX_PROCESSES];
+static int waiting_for_fork[MAX_PROCESSES];
 
 int request_critical(Process *self_void) {
-
-    timestamp_t const our_time = increment_and_get_local_time(self_void);
-
+    for(int i = self_void->id; i < processes; i++)
     {
-        Message request_msg = construct_message_with_type(CS_REQUEST);
-        send_multicast(self_void, &request_msg);
+        if (i != self_void->id) {
+            waiting_for_fork[i] = 0;
+            dirty[i] = forks[i] = 1;
+        } else {
+            waiting_for_fork[i] = 2;
+            dirty[i] = forks[i] = 2;
+        }
     }
 
-    int l_replies = children - 1;
-    while (l_replies > 0) {
 
-//        if (l_replies == 0 && pq_peek(queue).process_id == self->id) {
-//            break;
-//        }
+    for(int i = 1; i< processes; i++){
+        if(forks[i]==0){
+            self_void->lamport_time++;
+
+            Message msg = {
+                    .s_header =
+                            {
+                                    .s_magic = MESSAGE_MAGIC,
+                                    .s_type = CS_REQUEST,
+                                    .s_local_time = get_lamport_time(),
+                                    .s_payload_len = 0,
+                            },
+            };
+            send(self_void, i, &msg);
+        }
+    }
+
+    while (available()==0) {
+
 
         Message mesg;
         local_id peer_id = receive_any(self_void, &mesg);
@@ -31,17 +49,17 @@ int request_critical(Process *self_void) {
 
         switch (mesg.s_header.s_type) {
             case CS_REPLY:
-                l_replies--;
+                forks[peer_id]=1;
                 break;
 
             case CS_REQUEST:
-                if (our_time > their_time || (our_time == their_time && self_void->id > peer_id)) {
-                    self_void->is_defer[peer_id] = false;
-                    increment_and_get_local_time(self_void);
-                    Message message = construct_message_with_type(CS_REPLY);
-                    send(self_void, peer_id, &message);
-                } else {
-                    defer_reply(self_void, peer_id);
+                waiting_for_fork[peer_id]=1;
+                if(dirty[peer_id]==1){
+                    dirty[peer_id]=0;
+                    forks[peer_id]=0;
+                    mesg.s_header.s_local_time =  increment_and_get_local_time(self_void);
+                    mesg.s_header.s_type = CS_REPLY;
+                    send(self_void, peer_id, &mesg);
                 }
                 break;
 
@@ -56,7 +74,12 @@ int request_critical(Process *self_void) {
 }
 
 int release_critical( Process *self_void) {
-    send_replies(self_void);
+    for(int i = 1; i< processes; i++){
+            Message mesg;
+            mesg.s_header.s_local_time =  increment_and_get_local_time(self_void);
+            mesg.s_header.s_type = CS_REPLY;
+            if(i!=self_void->id) send(self_void, i, &mesg);
+    }
     return 0;
 }
 
@@ -67,20 +90,10 @@ int request_cs(const void *self) {
     return request_critical((Process *) self);
 }
 
-void defer_reply(Process *self, local_id peer) {
-    DEBUG("Deferring CS_REPLY to process #%d", peer);
-    self->is_defer[peer] = true;
-}
-void send_replies(Process *self) {
-    DEBUG("Sending deferred replies");
-
-    for (local_id peer = 1; peer <= children; ++peer) {
-        if (peer != self->id && self->is_defer[peer]) {
-            DEBUG("Sending deferred CS_REPLY to %d", peer);
-            increment_and_get_local_time(self);
-            Message message = construct_message_with_type(CS_REPLY);
-            send(self, peer, &message);
-            self->is_defer[peer] = false;
-        }
+int available(){
+    for(int i = 1; i < processes; i++){
+        if (0 == forks[i] || 1 == dirty[i])
+            return 0;
     }
+    return 1;
 }

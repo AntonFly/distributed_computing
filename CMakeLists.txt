@@ -22,4 +22,4 @@ add_executable(peer
         critical.h priority.h priority.c self_conversion.h)
 
 find_library(libruntime lib64/libruntime.so paths ${PROJECT_SOURCE_DIR}/lib64/)
-#target_link_libraries(lab5 ${libruntime})
+target_link_libraries(lab5 ${libruntime})

@@ -16,6 +16,10 @@
 
 #define CONVERT_SELF_TO(ref_type, var_name) ref_type* self = ((ref_type *) var_name)
 
+enum {
+    MAX_PROCESSES = 10,
+};
+
 typedef struct {
     BalanceHistory history;
     local_id id;
@@ -27,9 +31,6 @@ typedef struct {
     bool is_defer[MAX_PROCESS_ID + 1];
 } Process;
 
-enum {
-    MAX_PROCESSES = 10,
-};
 
 Process myself;
 size_t processes;
@@ -58,5 +59,13 @@ timestamp_t increment_and_get_local_time(Process *self);
 void up_time(Process *self, timestamp_t their_time);
 
 const char *msg_type_to_string(MessageType type);
+
+int get_right_fork_index(Process* self);
+
+int get_left_fork_index(Process* self);
+
+int have_all_forks(Process* self);
+
+void send_cs_request(Process* self, local_id to);
 
 #endif

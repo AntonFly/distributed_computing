@@ -82,30 +82,11 @@ void go_parent(Process *self) {
 
 void go_child(Process *self) {
 
-//    init_history(self, initial_balance);
 
     started_all(self);
 
     receive_started_all(self);
 
-
-//
-//        if (self->mutual_exclusion) {
-//            request_cs(self);
-//        }
-//
-//    char str[128];
-//    int num_prints = self->id * MULTIPLICATION_FACTOR;
-//    for (int i = 1; i <= num_prints; ++i) {
-//        memset(str, 0, sizeof(str));
-//        sprintf(str, log_loop_operation_fmt, self->id, i, num_prints);
-//        print(str);
-//    }
-//
-//    if (self->mutual_exclusion) {
-//        release_cs(self);
-//    }
-//    size_t left = children - 1;
 
     for (int i = 1; i <= children; ++i) {
         self->is_defer[i] = false;
@@ -204,3 +185,37 @@ void do_work(Process *self) {
     }
 }
 
+//
+//int get_right_fork_index(Process* self) {
+//    if (self->id == children)
+//        return 1;
+//    return self->id+1;
+//}
+//
+//int get_left_fork_index(Process* self) {
+//    if (self->id == 1)
+//        return children;
+//    return self->id-1;
+//}
+//
+//int have_all_forks(Process* self) {
+//    if (self->fork[get_left_fork_index(self)] == 1 && self->fork[get_right_fork_index(self)] == 1) {
+//        return 1;
+//    }
+//    return 0;
+//}
+
+
+void send_cs_request(Process* self, local_id to) {
+    Message msg = {
+            .s_header =
+                    {
+                            .s_magic = MESSAGE_MAGIC,
+                            .s_type = CS_REQUEST,
+                            .s_local_time = self->lamport_time,
+                            .s_payload_len = 0,
+                    },
+    };
+    send(&myself, to, &msg);
+
+}
