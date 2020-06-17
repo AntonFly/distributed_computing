@@ -25,8 +25,8 @@ void init_history(Process *self, balance_t balance) {
 }
 
 void close_other_pipes(Process *self) {
-    for (size_t src = 0; src < processes; src++) {
-        for (size_t dest = 0; dest < processes; dest++) {
+    for (size_t src = 0; src < self->processes; src++) {
+        for (size_t dest = 0; dest < self->processes; dest++) {
             if (src != self->id && dest != self->id &&
                 src != dest) {
                 close(writer[src][dest]);
@@ -45,7 +45,7 @@ void close_other_pipes(Process *self) {
 void go_parent(Process *self) {
     receive_started_all(self);
 
-    bank_robbery(self, processes - 1);
+    bank_robbery(self, self->processes - 1);
 
     stop_all(self);
 
@@ -54,7 +54,7 @@ void go_parent(Process *self) {
 
     receive_balance_histories(self);
 
-    for (size_t i = 1; i <= processes; i++) {
+    for (size_t i = 1; i <= self->processes; i++) {
     }
 
     print_history(&self->all_history);
@@ -69,7 +69,7 @@ void go_child(Process *self, balance_t initial_balance) {
     receive_started_all(self);
 
     bool b = false;
-    size_t left = children - 1;
+    size_t left = self->children - 1;
 
     while (!b) {
         Message mesg;

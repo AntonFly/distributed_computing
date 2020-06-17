@@ -21,21 +21,21 @@ int main(int argc, char const *argv[]) {
     Process *self = &myself;
 
     if (argc >= 3 && strcmp(argv[1], "-p") == 0) {
-        children = strtol(argv[2], NULL, 10);
-        processes = children + 1;
+        self->children = strtol(argv[2], NULL, 10);
+        self->processes = self->children + 1;
 
-        if (children > 9) {
+        if (self->children > 9) {
             fprintf(stderr, "Fail: Max mount of children is 9.\n");
             return 1;
         }
 
-        if (argc != 3 + children) {
+        if (argc != 3 + self->children) {
             fprintf(stderr, "Fail: Expected %ld state after `%s %s'\n",
-                    children, argv[1], argv[2]);
+                    self->children, argv[1], argv[2]);
             return 1;
         }
 
-        for (size_t i = 1; i <= children; i++) {
+        for (size_t i = 1; i <= self->children; i++) {
             states[i] = strtol(argv[2 + i], NULL, 10);
         }
     } else {
@@ -44,8 +44,8 @@ int main(int argc, char const *argv[]) {
     }
 
     // Create file descriptors.
-    for (size_t src = 0; src < processes; src++) {
-        for (size_t dest = src; dest < processes; dest++) {
+    for (size_t src = 0; src < self->processes; src++) {
+        for (size_t dest = src; dest < self->processes; dest++) {
             if (src != dest) {
                 int pipefd_original[2];
                 pipe(pipefd_original);
@@ -69,7 +69,7 @@ int main(int argc, char const *argv[]) {
     pids[PARENT_ID] = getpid();
 
     // Create children processes.
-    for (size_t id = 1; id <= children; id++) {
+    for (size_t id = 1; id <= self->children; id++) {
         int child_pid = fork();
         if (child_pid > 0) {
             self->id = PARENT_ID;

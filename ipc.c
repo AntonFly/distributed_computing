@@ -17,7 +17,7 @@ typedef enum {
 int send(void *self_void, local_id dst, const Message *msg) {
     Process *self = self_void;
 
-    if (dst >= processes) {
+    if (dst >= self->processes) {
         return INVALID_PEER;
     }
     if (msg->s_header.s_magic != MESSAGE_MAGIC) {
@@ -30,7 +30,7 @@ int send(void *self_void, local_id dst, const Message *msg) {
 
 int send_multicast(void *self_void, const Message *msg) {
     Process *self = self_void;
-    for (local_id dst = 0; dst < processes; dst++) {
+    for (local_id dst = 0; dst < self->processes; dst++) {
         if (dst != self->id) {
             int result = send(self, dst, msg);
             if (result > 0) {
@@ -44,7 +44,7 @@ int send_multicast(void *self_void, const Message *msg) {
 
 int receive(void *self_void, local_id from, Message *msg) {
     Process *self = self_void;
-    if (from >= processes) {
+    if (from >= self->processes) {
         return INVALID_PEER;
     }
 
@@ -63,8 +63,8 @@ int receive_any(void *self_void, Message *msg) {
     int src = self->id;
     while (true) {
         if (++src == self->id) src++;
-        if (src >= processes) {
-            src -= processes;
+        if (src >= self->processes) {
+            src -= self->processes;
         }
 
         size_t src_file = reader[src][self->id];
@@ -93,12 +93,6 @@ int receive_any(void *self_void, Message *msg) {
     }
 }
 
-/**
- * Attempts to read the exact number of bytes from file into the buffer.
- *
- * Unlike read(3P), this function will either read the exact given number of
- * bytes or exit with an error.
- */
 static size_t read_exact(size_t fd, void *buf, size_t num_bytes) {
     unsigned int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags & !O_NONBLOCK);

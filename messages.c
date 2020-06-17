@@ -30,7 +30,7 @@ void started_all(Process *self) {
 }
 
 void receive_started_all(Process *self) {
-    for (size_t i = 1; i <= children; i++) {
+    for (size_t i = 1; i <= self->children; i++) {
         Message msg;
         if (i == self->id) {
             continue;
@@ -56,7 +56,7 @@ void done_all(Process *self) {
 }
 
 void receive_done_all(Process *self) {
-    for (size_t i = 1; i <= children; i++) {
+    for (size_t i = 1; i <= self->children; i++) {
         if (i == self->id) {
             continue;
         }
@@ -99,8 +99,8 @@ void history_master(Process *self) {
 }
 
 void receive_balance_histories(Process *self) {
-    self->all_history.s_history_len = children;
-    for (size_t child = 1; child <= children; child++) {
+    self->all_history.s_history_len = self->children;
+    for (size_t child = 1; child <= self->children; child++) {
         Message msg;
         DEBUG("Waiting BALANCE_HISTORY from %lu\n", child);
         receive(&myself, child, &msg);

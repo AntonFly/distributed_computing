@@ -17,6 +17,9 @@ typedef struct {
     BalanceHistory history;
     local_id id;
     AllHistory all_history;
+    size_t processes;
+    size_t children;
+
 } Process;
 
 enum {
@@ -24,8 +27,8 @@ enum {
 };
 
 Process myself;
-size_t processes;
-size_t children;
+//size_t processes;
+//size_t children;
 
 size_t reader[MAX_PROCESSES][MAX_PROCESSES];
 size_t writer[MAX_PROCESSES][MAX_PROCESSES];
