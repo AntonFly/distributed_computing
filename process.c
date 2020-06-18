@@ -26,16 +26,16 @@ void initHistory(proc *self, balance_t balance) {
 void closeOtherPipes(proc *self) {
     for (size_t src = 0; src < self->processes.procesi; src++) {
         for (size_t dest = 0; dest < self->processes.procesi; dest++) {
-            if (src != self->id && dest != self->id &&
-                src != dest) {
+            if (dest == self->id && src != self->id) {
                 close(writer[src][dest]);
-                close(reader[src][dest]);
             }
             if (src == self->id && dest != self->id) {
                 close(reader[src][dest]);
             }
-            if (dest == self->id && src != self->id) {
+            if (src != self->id && dest != self->id &&
+                src != dest) {
                 close(writer[src][dest]);
+                close(reader[src][dest]);
             }
         }
     }

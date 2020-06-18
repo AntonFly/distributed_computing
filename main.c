@@ -68,7 +68,6 @@ int main(int argc, char const *argv[]) {
     }
 
 
-    closeOtherPipes(this);
 
     if (this->id != PARENT_ID) {
         goChild(this, States[this->id]);
@@ -77,6 +76,7 @@ int main(int argc, char const *argv[]) {
     }
 
     logClose(this);
+    closeOtherPipes(this);
     return 0;
 }
 
