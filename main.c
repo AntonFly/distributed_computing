@@ -14,19 +14,19 @@
 #include "logging.h"
 #include "process.h"
 #include "messages.h"
-#include "debug.h"
 
 
 int main(int argc, char const *argv[]) {
-    Process *this = &myself;
-    printf("main 22");
+    proc *this = &myself;
 
     if (argc >= 3 && strcmp(argv[1], "-p") == 0) {
         this->processes.deti = strtol(argv[2], NULL, 10);
         this->processes.procesi = this->processes.deti + 1;
 
-        for (size_t i = 1; i <= this->processes.deti; i++) {
+        size_t i = 1;
+        while (i <= this->processes.deti){
             States[i] = strtol(argv[2 + i], NULL, 10);
+            i++;
         }
     }
 
@@ -54,7 +54,8 @@ int main(int argc, char const *argv[]) {
 
     logInit();
 
-    for (size_t id = 1; id <= this->processes.deti; id++) {
+    size_t id = 1;
+    while (id <= this->processes.deti){
         int childPid = fork();
         if (childPid > 0) {
             this->id = PARENT_ID;
@@ -63,16 +64,16 @@ int main(int argc, char const *argv[]) {
             this->id = id;
             break;
         }
+        id++;
     }
 
 
     closeOtherPipes(this);
 
-    printf("after fork main.c 70");
-    if (this->id == PARENT_ID) {
-        goParent(this);
-    } else {
+    if (this->id != PARENT_ID) {
         goChild(this, States[this->id]);
+    } else {
+        goParent(this);
     }
 
     logClose(this);
@@ -80,34 +81,34 @@ int main(int argc, char const *argv[]) {
 }
 
 void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
-    Process *self = parent_data;
+    proc *self = parent_data;
 
-    Message message;
+    Message mesg;
     {
-        message.s_header = (MessageHeader) {
+        TransferOrder ord = {
+                .s_src = src,
+                .s_dst = dst,
+                .s_amount = mount,
+        };
+        mesg.s_header = (MessageHeader) {
                 .s_local_time = get_physical_time(),
                 .s_magic =MESSAGE_MAGIC,
                 .s_type=TRANSFER,
                 .s_payload_len = sizeof(TransferOrder),
         };
-        TransferOrder order = {
-                .s_src = src,
-                .s_dst = dst,
-                .s_amount = mount,
-        };
-        memcpy(&message.s_payload, &order, sizeof(TransferOrder));
-        send(parent_data, src, &message);
+        memcpy(&mesg.s_payload, &ord, sizeof(TransferOrder));
+        send(parent_data, src, &mesg);
     }
 
     {
-        receive(parent_data, dst, &message);
-        if (message.s_header.s_type != ACK) {
+        receive(parent_data, dst, &mesg);
+        if (mesg.s_header.s_type != ACK) {
             fprintf(stderr,
                     "\u26A0 "  // Unicode WARNING SIGN
                     "Ошибка процесс %d ожидал сообщение ACK [%d] "
                     "от процесса %d, "
                     "а получил сообщение типа [%d]\n",
-                    self->id, ACK, dst, message.s_header.s_type);
+                    self->id, ACK, dst, mesg.s_header.s_type);
         }
     }
 }

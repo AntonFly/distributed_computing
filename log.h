@@ -10,7 +10,6 @@
 
 #include "common.h"
 #include "ipc.h"
-#include "pa1.h"
 
 static FILE *events_log_file;
 local_id my_id;

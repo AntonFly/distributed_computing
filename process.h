@@ -28,13 +28,13 @@ typedef struct {
     local_id id;
     history his;
     mount_p processes;
-} Process;
+} proc;
 
 enum {
     MAX_PROCESSES = 10,
 };
 
-Process myself;
+proc myself;
 
 size_t reader[MAX_PROCESSES][MAX_PROCESSES];
 size_t writer[MAX_PROCESSES][MAX_PROCESSES];
@@ -42,14 +42,14 @@ size_t writer[MAX_PROCESSES][MAX_PROCESSES];
 pid_t Pids[MAX_PROCESSES];
 balance_t States[MAX_PROCESSES];
 
-void initializeHistory(Process *self, balance_t initial_balance);
+void initHistory(proc *self, balance_t initial_balance);
 
-void goParent(Process *self);
+void goParent(proc *self);
 
-void goChild(Process *self, balance_t initialBalance);
+void goChild(proc *self, balance_t initialBalance);
 
-void closeOtherPipes(Process *self);
+void closeOtherPipes(proc *self);
 
-void receiveStartedInfo(Process *self);
+void receiveStartedInfo(proc *self);
 
 #endif

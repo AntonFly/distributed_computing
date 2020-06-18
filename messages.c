@@ -8,9 +8,8 @@
 #include "logging.h"
 #include "pa2345.h"
 #include "process.h"
-#include "debug.h"
 
-void startedAll(Process *self) {
+void startedAll(proc *self) {
     Message msg = {
         .s_header =
             {
@@ -29,7 +28,7 @@ void startedAll(Process *self) {
     send_multicast(&myself, &msg);
 }
 
-void receiveStartedAll(Process *self) {
+void receiveStartedAll(proc *self) {
     for (size_t i = 1; i <= self->processes.deti; i++) {
         Message msg;
         if (i == self->id) {
@@ -40,7 +39,7 @@ void receiveStartedAll(Process *self) {
     logMsg('a',self);
 }
 
-void doneAll(Process *self) {
+void doneAll(proc *self) {
     Message msg = {
         .s_header =
             {
@@ -55,7 +54,7 @@ void doneAll(Process *self) {
     send_multicast(&myself, &msg);
 }
 
-void receiveDoneAll(Process *self) {
+void receiveDoneAll(proc *self) {
     for (size_t i = 1; i <= self->processes.deti; i++) {
         if (i == self->id) {
             continue;
@@ -66,7 +65,7 @@ void receiveDoneAll(Process *self) {
     logMsg('d',self);
 }
 
-void stopAll(Process *self) {
+void stopAll(proc *self) {
     Message msg = {
         .s_header =
             {
@@ -79,7 +78,7 @@ void stopAll(Process *self) {
     send_multicast(&myself, &msg);
 }
 
-void historyMaster(Process *self) {
+void historyMaster(proc *self) {
 
     self->his.istoria.s_history_len = get_physical_time() + 1;
     size_t size_of_history = sizeof(local_id) +
@@ -98,11 +97,10 @@ void historyMaster(Process *self) {
     send(self, PARENT_ID, &msg);
 }
 
-void receiveBalanceHistories(Process *self) {
+void receiveBalanceHistories(proc *self) {
     self->his.vsia_istoria.s_history_len = self->processes.deti;
     for (size_t child = 1; child <= self->processes.deti; child++) {
         Message msg;
-        DEBUG("Waiting BALANCE_HISTORY from %lu\n", child);
         receive(&myself, child, &msg);
         int16_t msg_type = msg.s_header.s_type;
         if (msg_type != BALANCE_HISTORY) {

@@ -9,8 +9,8 @@ void printfLogMsg(Message *message, const char *format, ...);
 
 void logInit();
 
-void logMsg(char key,Process *self);
+void logMsg(char key, proc *self);
 
-void logClose(Process *self);
+void logClose(proc *self);
 
 #endif

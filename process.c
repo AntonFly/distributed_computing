@@ -7,12 +7,11 @@
 #include "ipc.h"
 #include "logging.h"
 #include "process.h"
-#include "debug.h"
 #include "pa2345.h"
 
-void transferOrder(Process *self, Message *mesg);
+void transferOrder(proc *self, Message *mesg);
 
-void initHistory(Process *self, balance_t balance) {
+void initHistory(proc *self, balance_t balance) {
     self->his.istoria.s_id = self->id;
     self->his.istoria.s_history_len = 1;
     for (timestamp_t time = 0; time <= MAX_T; ++time) {
@@ -24,7 +23,7 @@ void initHistory(Process *self, balance_t balance) {
     }
 }
 
-void closeOtherPipes(Process *self) {
+void closeOtherPipes(proc *self) {
     for (size_t src = 0; src < self->processes.procesi; src++) {
         for (size_t dest = 0; dest < self->processes.procesi; dest++) {
             if (src != self->id && dest != self->id &&
@@ -42,11 +41,11 @@ void closeOtherPipes(Process *self) {
     }
 }
 
-void goParent(Process *self) {
+void goParent(proc *self) {
 
     receiveStartedAll(self);
 
-//    receiveStartedInfo(self);
+    receiveStartedInfo(self);
 
     bank_robbery(self, self->processes.procesi - 1);
 
@@ -59,7 +58,7 @@ void goParent(Process *self) {
     print_history(&self->his.vsia_istoria);
 }
 
-void goChild(Process *self, balance_t initialBalance) {
+void goChild(proc *self, balance_t initialBalance) {
 
     initHistory(self, initialBalance);
 
@@ -75,19 +74,14 @@ void goChild(Process *self, balance_t initialBalance) {
         Message mesg;
         receive_any(self, &mesg);
         MessageType mesgType = mesg.s_header.s_type;
-        switch (mesgType) {
-            case STOP:
-                b = true;
-                break;
-            case TRANSFER:
-                transferOrder(self, &mesg);
-                break;
-            case DONE:
-                left--;
-                break;
-            default:
-                break;
+        if(mesgType== STOP){
+            b = true;
+        } else if(mesgType== TRANSFER){
+            transferOrder(self, &mesg);
+        } else if(mesgType == DONE){
+            left--;
         }
+
     }
 
     doneAll(self);
@@ -95,18 +89,22 @@ void goChild(Process *self, balance_t initialBalance) {
     while (left > 0) {
         Message message;
         receive_any(self, &message);
-        MessageType message_type = message.s_header.s_type;
-
-        switch (message_type) {
-            case TRANSFER:
-                transferOrder(self, &message);
-                break;
-            case DONE:
-                left--;
-                break;
-            default:
-                break;
+        MessageType messageType = message.s_header.s_type;
+        if(messageType == TRANSFER){
+            transferOrder(self, &message);
+        } else if (messageType ==DONE ){
+            left--;
         }
+//        switch (messageType) {
+//            case TRANSFER:
+//                transferOrder(self, &message);
+//                break;
+//            case DONE:
+//                left--;
+//                break;
+//            default:
+//                break;
+//        }
     }
 
     logMsg('d',self);
@@ -114,7 +112,7 @@ void goChild(Process *self, balance_t initialBalance) {
     historyMaster(self);
 }
 
-void transferOrder(Process *self, Message *mesg)  {
+void transferOrder(proc *self, Message *mesg)  {
     BalanceHistory *history = &self->his.istoria;
     balance_t i = 0;
     TransferOrder *Order = (TransferOrder *) &(mesg->s_payload);
@@ -124,13 +122,10 @@ void transferOrder(Process *self, Message *mesg)  {
 
         send(&myself, Order->s_dst, mesg);
 
-        i = -Order->s_amount;
         logPrintf(log_transfer_out_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_dst);
 
     } else if (Order->s_dst == self->id) {
         Message msg;
-
-
         msg.s_header = (MessageHeader) {
                 .s_magic = MESSAGE_MAGIC,
                 .s_type = ACK,
@@ -138,8 +133,6 @@ void transferOrder(Process *self, Message *mesg)  {
                 .s_payload_len = 0,
         };
         send(&myself, PARENT_ID, &msg);
-        i = +Order->s_amount;
-
         logPrintf(log_transfer_in_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_src);
 
     } else {
@@ -148,9 +141,10 @@ void transferOrder(Process *self, Message *mesg)  {
     if (physicalTime >= history->s_history_len) {
         history->s_history_len = physicalTime + 1;
     }
-
-    for (timestamp_t time = physicalTime; time <= MAX_T; time++) {
+    timestamp_t time = physicalTime;
+    while (time <= MAX_T){
         history->s_history[time].s_balance += i;
+        time++;
     }
 }
 
@@ -160,7 +154,7 @@ void receveStartedInfo(int *self) {
     receveStartedInfo(self);
 }
 
-void receiveStartedInfo(Process *self){
+void receiveStartedInfo(proc *self){
     int info=0;
     receveStartedInfo(&info);
 }

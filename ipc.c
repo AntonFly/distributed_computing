@@ -10,15 +10,14 @@
 static size_t readExact(size_t fd, void *buf, size_t num_bytes);
 
 typedef enum {
-    INVALID_PEER = 1,
     INVALID_MAGIC,
-} IpcError;
+} Error;
 
 int send(void *self_void, local_id dst, const Message *msg) {
-    Process *self = self_void;
+    proc *self = self_void;
 
     if (dst >= self->processes.procesi) {
-        return INVALID_PEER;
+        return 1;
     }
     if (msg->s_header.s_magic != MESSAGE_MAGIC) {
         return INVALID_MAGIC;
@@ -29,8 +28,9 @@ int send(void *self_void, local_id dst, const Message *msg) {
 }
 
 int send_multicast(void *self_void, const Message *msg) {
-    Process *self = self_void;
-    for (local_id dst = 0; dst < self->processes.procesi; dst++) {
+    proc *self = self_void;
+    local_id dst = 0;
+    while( dst < self->processes.procesi){
         if (dst != self->id) {
             int result = send(self, dst, msg);
             if (result > 0) {
@@ -38,14 +38,15 @@ int send_multicast(void *self_void, const Message *msg) {
                 return result;
             }
         }
+        dst++;
     }
     return 0;
 }
 
 int receive(void *self_void, local_id from, Message *msg) {
-    Process *self = self_void;
+    proc *self = self_void;
     if (from >= self->processes.procesi) {
-        return INVALID_PEER;
+        return 1;
     }
 
     readExact(reader[from][self->id], &msg->s_header, sizeof(MessageHeader));
@@ -59,7 +60,7 @@ int receive(void *self_void, local_id from, Message *msg) {
 }
 
 int receive_any(void *this, Message *msg) {
-    Process *self = (Process *) this;
+    proc *self = (proc *) this;
     int id = self->id;
     while (true) {
         if (++id == self->id) id++;

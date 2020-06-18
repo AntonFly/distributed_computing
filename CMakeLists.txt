@@ -10,14 +10,14 @@ add_executable(peer
         ipc.c
         common.h
         ipc.h
-        io.h
+        log.h
         banking.h
         pa2345.h
         bank_robbery.c
         messages.c
         process.c
         logging.c
-        debug.h)
+        )
 
 find_library(libruntime libruntime.so paths ${PROJECT_SOURCE_DIR}/lib64/)
 #target_link_libraries(peer ${libruntime})

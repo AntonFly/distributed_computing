@@ -15,12 +15,13 @@ void logPrintf(const char *format, ...) {
     va_list va;
 
     va_start(va, format);
-    vprintf(format, va);
+    vfprintf(events_log_file, format, va);
     va_end(va);
 
     va_start(va, format);
-    vfprintf(events_log_file, format, va);
+    vprintf(format, va);
     va_end(va);
+
 }
 
 void printfLogMsg(Message *const message, const char *format, ...) {
@@ -44,14 +45,14 @@ void logInit() {
     events_log_file = fopen(events_log, "a");
 }
 
-void logMsg(char key,Process *self){
+void logMsg(char key, proc *self){
     pid_t pid = getpid();
-    pid_t parent_pid = getppid();
+    pid_t parentPid = getppid();
     switch (key){
         case 's':
             logPrintf(
                     log_started_fmt, get_physical_time, self->id,
-                    pid, parent_pid,
+                    pid, parentPid,
                     self->his.istoria.s_history[self->his.istoria.s_history_len - 1].s_balance);
             break;
         case 'a':
@@ -65,6 +66,6 @@ void logMsg(char key,Process *self){
     }
 }
 
-void logClose(Process *self) {
+void logClose(proc *self) {
     fclose(events_log_file);
 }
