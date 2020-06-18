@@ -7,7 +7,7 @@
 #include "ipc.h"
 #include "process.h"
 
-static size_t read_exact(size_t fd, void *buf, size_t num_bytes);
+static size_t readExact(size_t fd, void *buf, size_t num_bytes);
 
 typedef enum {
     INVALID_PEER = 1,
@@ -17,7 +17,7 @@ typedef enum {
 int send(void *self_void, local_id dst, const Message *msg) {
     Process *self = self_void;
 
-    if (dst >= self->processes) {
+    if (dst >= self->processes.procesi) {
         return INVALID_PEER;
     }
     if (msg->s_header.s_magic != MESSAGE_MAGIC) {
@@ -30,11 +30,11 @@ int send(void *self_void, local_id dst, const Message *msg) {
 
 int send_multicast(void *self_void, const Message *msg) {
     Process *self = self_void;
-    for (local_id dst = 0; dst < self->processes; dst++) {
+    for (local_id dst = 0; dst < self->processes.procesi; dst++) {
         if (dst != self->id) {
             int result = send(self, dst, msg);
             if (result > 0) {
-                fprintf(stderr, "Fail: Process %d fail to send_multicast when send to %d!\n", self->id, dst);
+                fprintf(stderr, "Ошибка процесс %d несмог отправить мультикаст к %d!\n", self->id, dst);
                 return result;
             }
         }
@@ -44,34 +44,34 @@ int send_multicast(void *self_void, const Message *msg) {
 
 int receive(void *self_void, local_id from, Message *msg) {
     Process *self = self_void;
-    if (from >= self->processes) {
+    if (from >= self->processes.procesi) {
         return INVALID_PEER;
     }
 
-    read_exact(reader[from][self->id], &msg->s_header, sizeof(MessageHeader));
+    readExact(reader[from][self->id], &msg->s_header, sizeof(MessageHeader));
     if (msg->s_header.s_magic != MESSAGE_MAGIC) {
         return INVALID_MAGIC;
     }
 
-    read_exact(reader[from][self->id], &msg->s_payload,
-               msg->s_header.s_payload_len);
+    readExact(reader[from][self->id], &msg->s_payload,
+              msg->s_header.s_payload_len);
     return 0;
 }
 
-int receive_any(void *self_void, Message *msg) {
-    Process *self = (Process *) self_void;
-    int src = self->id;
+int receive_any(void *this, Message *msg) {
+    Process *self = (Process *) this;
+    int id = self->id;
     while (true) {
-        if (++src == self->id) src++;
-        if (src >= self->processes) {
-            src -= self->processes;
+        if (++id == self->id) id++;
+        if (id >= self->processes.procesi) {
+            id -= self->processes.procesi;
         }
 
-        size_t src_file = reader[src][self->id];
-        unsigned int flags = fcntl(src_file, F_GETFL, 0);
-        fcntl(src_file, F_SETFL, flags | O_NONBLOCK);
-        int num_bytes = read(src_file, &msg->s_header, 1);
-        switch (num_bytes) {
+        size_t srcFile = reader[id][self->id];
+        unsigned int flags = fcntl(srcFile, F_GETFL, 0);
+        fcntl(srcFile, F_SETFL, flags | O_NONBLOCK);
+        int numBytes = read(srcFile, &msg->s_header, 1);
+        switch (numBytes) {
             case -1:
                 nanosleep((const struct timespec[]) {{0, 1000L}}, NULL);
                 continue;
@@ -83,33 +83,39 @@ int receive_any(void *self_void, Message *msg) {
                 break;
         }
 
-        fcntl(src_file, F_SETFL, flags & !O_NONBLOCK);
+        fcntl(srcFile, F_SETFL, flags & !O_NONBLOCK);
 
-        read(src_file, ((char *) &msg->s_header) + 1, sizeof(MessageHeader) - 1);
-        read(src_file, msg->s_payload, msg->s_header.s_payload_len);
+        read(srcFile, ((char *) &msg->s_header) + 1, sizeof(MessageHeader) - 1);
+        read(srcFile, msg->s_payload, msg->s_header.s_payload_len);
 
-        fcntl(src_file, F_SETFL, flags | O_NONBLOCK);
+        fcntl(srcFile, F_SETFL, flags | O_NONBLOCK);
         return 0;
     }
 }
 
-static size_t read_exact(size_t fd, void *buf, size_t num_bytes) {
-    unsigned int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags & !O_NONBLOCK);
+static size_t readExact(size_t fd, void *buf, size_t num_bytes) {
+    unsigned int f = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, f & !O_NONBLOCK);
 
     size_t offset = 0;
     size_t remaining = num_bytes;
 
     while (remaining > 0) {
-        int num_bytes_read = read(fd, ((char *)buf) + offset, remaining);
-        if (num_bytes_read > 0) {
-            remaining -= num_bytes_read;
-            offset += num_bytes_read;
+        int bytesRead = read(fd, ((char *)buf) + offset, remaining);
+        if (bytesRead > 0) {
+            remaining -= bytesRead;
+            offset += bytesRead;
         } else {
             return -1;
         }
     }
 
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    fcntl(fd, F_SETFL, f | O_NONBLOCK);
     return offset;
 }
+
+
+
+
+
+

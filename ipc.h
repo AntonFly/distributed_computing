@@ -103,12 +103,12 @@ int receive(void * self, local_id from, Message * msg);
  * Receive a message from any process, in case of blocking I/O should be used
  * with extra care to avoid deadlocks.
  *
- * @param self    Any data structure implemented by students to perform I/O
+ * @param this    Any data structure implemented by students to perform I/O
  * @param msg     Message structure allocated by the caller
  *
  * @return 0 on success, any non-zero value on error
  */
-int receive_any(void * self, Message * msg);
+int receive_any(void * this, Message * msg);
 
 //------------------------------------------------------------------------------
 

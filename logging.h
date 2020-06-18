@@ -3,14 +3,14 @@
 
 #include "process.h"
 
-void log_printf(const char *format, ...);
+void logPrintf(const char *format, ...);
 
-void printf_log_msg(Message *message, const char *format, ...);
+void printfLogMsg(Message *message, const char *format, ...);
 
-void log_init();
+void logInit();
 
-void log_msg(char key,Process *self);
+void logMsg(char key,Process *self);
 
-void log_close(Process *self);
+void logClose(Process *self);
 
 #endif

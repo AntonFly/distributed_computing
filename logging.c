@@ -11,7 +11,7 @@
 
 static FILE *events_log_file;
 
-void log_printf(const char *format, ...) {
+void logPrintf(const char *format, ...) {
     va_list va;
 
     va_start(va, format);
@@ -23,7 +23,7 @@ void log_printf(const char *format, ...) {
     va_end(va);
 }
 
-void printf_log_msg(Message *const message, const char *format, ...) {
+void printfLogMsg(Message *const message, const char *format, ...) {
     va_list va;
 
     va_start(va, format);
@@ -40,31 +40,31 @@ void printf_log_msg(Message *const message, const char *format, ...) {
     va_end(va);
 }
 
-void log_init() {
+void logInit() {
     events_log_file = fopen(events_log, "a");
 }
 
-void log_msg(char key,Process *self){
+void logMsg(char key,Process *self){
     pid_t pid = getpid();
     pid_t parent_pid = getppid();
     switch (key){
         case 's':
-            log_printf(
+            logPrintf(
                     log_started_fmt, get_physical_time, self->id,
                     pid, parent_pid,
-                    self->history.s_history[self->history.s_history_len - 1].s_balance);
+                    self->his.istoria.s_history[self->his.istoria.s_history_len - 1].s_balance);
             break;
         case 'a':
-            log_printf(log_received_all_started_fmt, get_physical_time(), self->id);
+            logPrintf(log_received_all_started_fmt, get_physical_time(), self->id);
             break;
         case 'd':
-            log_printf(log_done_fmt, get_physical_time(), self->id);
+            logPrintf(log_done_fmt, get_physical_time(), self->id);
             break;
         case 'r':
-            log_printf(log_received_all_done_fmt, get_physical_time(), self->id);
+            logPrintf(log_received_all_done_fmt, get_physical_time(), self->id);
     }
 }
 
-void log_close(Process *self) {
+void logClose(Process *self) {
     fclose(events_log_file);
 }

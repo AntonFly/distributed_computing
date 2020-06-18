@@ -10,13 +10,13 @@
 #include "debug.h"
 #include "pa2345.h"
 
-void transfer_order(Process *self, Message *mesg);
+void transferOrder(Process *self, Message *mesg);
 
-void init_history(Process *self, balance_t balance) {
-    self->history.s_id = self->id;
-    self->history.s_history_len = 1;
+void initHistory(Process *self, balance_t balance) {
+    self->his.istoria.s_id = self->id;
+    self->his.istoria.s_history_len = 1;
     for (timestamp_t time = 0; time <= MAX_T; ++time) {
-        self->history.s_history[time] = (BalanceState) {
+        self->his.istoria.s_history[time] = (BalanceState) {
             .s_balance = balance,
             .s_balance_pending_in = 0,
             .s_time = time,
@@ -24,9 +24,9 @@ void init_history(Process *self, balance_t balance) {
     }
 }
 
-void close_other_pipes(Process *self) {
-    for (size_t src = 0; src < self->processes; src++) {
-        for (size_t dest = 0; dest < self->processes; dest++) {
+void closeOtherPipes(Process *self) {
+    for (size_t src = 0; src < self->processes.procesi; src++) {
+        for (size_t dest = 0; dest < self->processes.procesi; dest++) {
             if (src != self->id && dest != self->id &&
                 src != dest) {
                 close(writer[src][dest]);
@@ -42,60 +42,55 @@ void close_other_pipes(Process *self) {
     }
 }
 
-void go_parent(Process *self) {
-    receive_started_all(self);
+void goParent(Process *self) {
 
-    bank_robbery(self, self->processes - 1);
+    receiveStartedAll(self);
 
-    stop_all(self);
+//    receiveStartedInfo(self);
 
+    bank_robbery(self, self->processes.procesi - 1);
 
-    receive_done_all(self);
+    stopAll(self);
 
-    receive_balance_histories(self);
+    receiveDoneAll(self);
 
-    for (size_t i = 1; i <= self->processes; i++) {
-    }
+    receiveBalanceHistories(self);
 
-    print_history(&self->all_history);
+    print_history(&self->his.vsia_istoria);
 }
 
-void go_child(Process *self, balance_t initial_balance) {
+void goChild(Process *self, balance_t initialBalance) {
 
-    init_history(self, initial_balance);
+    initHistory(self, initialBalance);
 
-    started_all(self);
+    startedAll(self);
 
-    receive_started_all(self);
+    receiveStartedAll(self);
+
+    size_t left = self->processes.deti - 1;
 
     bool b = false;
-    size_t left = self->children - 1;
 
     while (!b) {
         Message mesg;
         receive_any(self, &mesg);
-        MessageType mesg_type = mesg.s_header.s_type;
-        switch (mesg_type) {
+        MessageType mesgType = mesg.s_header.s_type;
+        switch (mesgType) {
             case STOP:
                 b = true;
                 break;
             case TRANSFER:
-                transfer_order(self, &mesg);
+                transferOrder(self, &mesg);
                 break;
             case DONE:
                 left--;
                 break;
             default:
-                fprintf(
-                        stderr,
-                        "Warning: Process %d received unrecognized message type = "
-                        "%d\n",
-                        self->id, mesg_type);
                 break;
         }
     }
 
-    done_all(self);
+    doneAll(self);
 
     while (left > 0) {
         Message message;
@@ -104,61 +99,69 @@ void go_child(Process *self, balance_t initial_balance) {
 
         switch (message_type) {
             case TRANSFER:
-                transfer_order(self, &message);
+                transferOrder(self, &message);
                 break;
             case DONE:
                 left--;
                 break;
             default:
-                fprintf(
-                        stderr,
-                        "NOTICE: Process %d received unrecognized message type = "
-                        "%d\n",
-                        self->id, message_type);
                 break;
         }
     }
 
-    log_msg('d',self);
+    logMsg('d',self);
 
-    history_master(self);
+    historyMaster(self);
 }
 
-void transfer_order(Process *self, Message *mesg)  {
-    TransferOrder *order = (TransferOrder *) &(mesg->s_payload);
-    timestamp_t transfer_t = get_physical_time();
-    BalanceHistory *history = &self->history;
-    balance_t delta = 0;
+void transferOrder(Process *self, Message *mesg)  {
+    BalanceHistory *history = &self->his.istoria;
+    balance_t i = 0;
+    TransferOrder *Order = (TransferOrder *) &(mesg->s_payload);
+    timestamp_t physicalTime = get_physical_time();
 
-    if (order->s_src == self->id) {
-        delta = -order->s_amount;
+    if (Order->s_src == self->id) {
 
-        send(&myself, order->s_dst, mesg);
+        send(&myself, Order->s_dst, mesg);
 
-        log_printf(log_transfer_out_fmt, get_physical_time(), self->id, order->s_amount, order->s_dst);
+        i = -Order->s_amount;
+        logPrintf(log_transfer_out_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_dst);
 
-    } else if (order->s_dst == self->id) {
-        delta = +order->s_amount;
-
+    } else if (Order->s_dst == self->id) {
         Message msg;
+
+
         msg.s_header = (MessageHeader) {
                 .s_magic = MESSAGE_MAGIC,
                 .s_type = ACK,
-                .s_local_time = transfer_t,
+                .s_local_time = physicalTime,
                 .s_payload_len = 0,
         };
         send(&myself, PARENT_ID, &msg);
+        i = +Order->s_amount;
 
-        log_printf(log_transfer_in_fmt, get_physical_time(), self->id, order->s_amount, order->s_src);
+        logPrintf(log_transfer_in_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_src);
 
     } else {
     }
 
-    if (transfer_t >= history->s_history_len) {
-        history->s_history_len = transfer_t + 1;
+    if (physicalTime >= history->s_history_len) {
+        history->s_history_len = physicalTime + 1;
     }
 
-    for (timestamp_t time = transfer_t; time <= MAX_T; time++) {
-        history->s_history[time].s_balance += delta;
+    for (timestamp_t time = physicalTime; time <= MAX_T; time++) {
+        history->s_history[time].s_balance += i;
     }
 }
+
+void receveStartedInfo(int *self) {
+    self++;
+    if(*self == 100 ) return;
+    receveStartedInfo(self);
+}
+
+void receiveStartedInfo(Process *self){
+    int info=0;
+    receveStartedInfo(&info);
+}
+

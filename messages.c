@@ -10,7 +10,7 @@
 #include "process.h"
 #include "debug.h"
 
-void started_all(Process *self) {
+void startedAll(Process *self) {
     Message msg = {
         .s_header =
             {
@@ -20,27 +20,27 @@ void started_all(Process *self) {
     };
 
     timestamp_t time = get_physical_time();
-    printf_log_msg(
+    printfLogMsg(
         &msg, log_started_fmt, time, self->id, getpid(),
         getppid(),
-        self->history.s_history[time].s_balance);
+        self->his.istoria.s_history[time].s_balance);
 
     msg.s_header.s_payload_len = strlen(msg.s_payload);
     send_multicast(&myself, &msg);
 }
 
-void receive_started_all(Process *self) {
-    for (size_t i = 1; i <= self->children; i++) {
+void receiveStartedAll(Process *self) {
+    for (size_t i = 1; i <= self->processes.deti; i++) {
         Message msg;
         if (i == self->id) {
             continue;
         }
         receive(&myself, i, &msg);
     }
-    log_msg('a',self);
+    logMsg('a',self);
 }
 
-void done_all(Process *self) {
+void doneAll(Process *self) {
     Message msg = {
         .s_header =
             {
@@ -49,24 +49,24 @@ void done_all(Process *self) {
             },
     };
     timestamp_t time = get_physical_time();
-    printf_log_msg(&msg, log_done_fmt, time, self->id,
-                          self->history.s_history[time].s_balance);
+    printfLogMsg(&msg, log_done_fmt, time, self->id,
+                          self->his.istoria.s_history[time].s_balance);
     msg.s_header.s_payload_len = strlen(msg.s_payload);
     send_multicast(&myself, &msg);
 }
 
-void receive_done_all(Process *self) {
-    for (size_t i = 1; i <= self->children; i++) {
+void receiveDoneAll(Process *self) {
+    for (size_t i = 1; i <= self->processes.deti; i++) {
         if (i == self->id) {
             continue;
         }
         Message msg;
         receive(&myself, i, &msg);
     }
-    log_msg('d',self);
+    logMsg('d',self);
 }
 
-void stop_all(Process *self) {
+void stopAll(Process *self) {
     Message msg = {
         .s_header =
             {
@@ -79,12 +79,12 @@ void stop_all(Process *self) {
     send_multicast(&myself, &msg);
 }
 
-void history_master(Process *self) {
+void historyMaster(Process *self) {
 
-    self->history.s_history_len = get_physical_time() + 1;
+    self->his.istoria.s_history_len = get_physical_time() + 1;
     size_t size_of_history = sizeof(local_id) +
                              sizeof(uint8_t) +
-                             self->history.s_history_len * sizeof(BalanceState);
+                             self->his.istoria.s_history_len * sizeof(BalanceState);
 
     Message msg = {
         .s_header = {
@@ -94,13 +94,13 @@ void history_master(Process *self) {
             .s_payload_len = size_of_history,
         }
     };
-    memcpy(&msg.s_payload, &self->history, size_of_history);
+    memcpy(&msg.s_payload, &self->his.istoria, size_of_history);
     send(self, PARENT_ID, &msg);
 }
 
-void receive_balance_histories(Process *self) {
-    self->all_history.s_history_len = self->children;
-    for (size_t child = 1; child <= self->children; child++) {
+void receiveBalanceHistories(Process *self) {
+    self->his.vsia_istoria.s_history_len = self->processes.deti;
+    for (size_t child = 1; child <= self->processes.deti; child++) {
         Message msg;
         DEBUG("Waiting BALANCE_HISTORY from %lu\n", child);
         receive(&myself, child, &msg);
@@ -111,7 +111,7 @@ void receive_balance_histories(Process *self) {
                     "got %d \n", BALANCE_HISTORY, msg_type);
         } else {
             BalanceHistory *their_history = (BalanceHistory *) &msg.s_payload;
-            self->all_history.s_history[child - 1] = *their_history;
+            self->his.vsia_istoria.s_history[child - 1] = *their_history;
         }
     }
 }

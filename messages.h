@@ -3,19 +3,19 @@
 
 #include "process.h"
 
-void stop_all(Process *self);
+void stopAll(Process *self);
 
-void started_all(Process *self);
+void startedAll(Process *self);
 
-void receive_started_all(Process *self);
+void receiveStartedAll(Process *self);
 
 
-void done_all(Process *self);
+void doneAll(Process *self);
 
-void receive_done_all(Process *self);
+void receiveDoneAll(Process *self);
 
-void receive_balance_histories(Process *self);
+void receiveBalanceHistories(Process *self);
 
-void history_master(Process *self);
+void historyMaster(Process *self);
 
 #endif

@@ -14,12 +14,20 @@
 #include "ipc.h"
 
 typedef struct {
-    BalanceHistory history;
-    local_id id;
-    AllHistory all_history;
-    size_t processes;
-    size_t children;
+    size_t procesi;
+    size_t deti;
+} mount_p;
 
+
+typedef struct {
+    BalanceHistory istoria;
+    AllHistory vsia_istoria;
+} history;
+
+typedef struct {
+    local_id id;
+    history his;
+    mount_p processes;
 } Process;
 
 enum {
@@ -27,21 +35,21 @@ enum {
 };
 
 Process myself;
-//size_t processes;
-//size_t children;
 
 size_t reader[MAX_PROCESSES][MAX_PROCESSES];
 size_t writer[MAX_PROCESSES][MAX_PROCESSES];
 
-pid_t pids[MAX_PROCESSES];
-balance_t states[MAX_PROCESSES];
+pid_t Pids[MAX_PROCESSES];
+balance_t States[MAX_PROCESSES];
 
-void initialize_history(Process *self, balance_t initial_balance);
+void initializeHistory(Process *self, balance_t initial_balance);
 
-void go_parent(Process *self);
+void goParent(Process *self);
 
-void go_child(Process *self, balance_t initial_balance);
+void goChild(Process *self, balance_t initialBalance);
 
-void close_other_pipes(Process *self);
+void closeOtherPipes(Process *self);
+
+void receiveStartedInfo(Process *self);
 
 #endif
