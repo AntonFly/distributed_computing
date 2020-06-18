@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdio.h>
 #include "banking.h"
 
 #include "ipc.h"
@@ -21,13 +22,14 @@ typedef struct {
 
 typedef struct {
     BalanceHistory istoria;
-    AllHistory vsia_istoria;
+    AllHistory vsiaIstoria;
 } history;
 
 typedef struct {
     local_id id;
     history his;
     mount_p processes;
+    BalanceState balance;
 } proc;
 
 enum {
@@ -44,11 +46,9 @@ balance_t States[MAX_PROCESSES];
 
 void initHistory(proc *self, balance_t initial_balance);
 
-void goParent(proc *self);
+void goChild(proc *self, balance_t initialBalance, FILE *logFile);
 
-void goChild(proc *self, balance_t initialBalance);
-
-void closeOtherPipes(proc *self);
+void closePipes(proc *self);
 
 void receiveStartedInfo(proc *self);
 

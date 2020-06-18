@@ -5,17 +5,15 @@
 
 void stopAll(proc *self);
 
-void startedAll(proc *self);
+void startedAll(proc *self,FILE *logFile);
 
-void receiveStartedAll(proc *self);
+void receiveStartedAll(proc *self,FILE *logFile);
 
+void doneAll(proc *self,FILE *logFile);
 
-void doneAll(proc *self);
-
-void receiveDoneAll(proc *self);
+void receiveDoneAll(proc *self,FILE *logFil);
 
 void receiveBalanceHistories(proc *self);
 
-void historyMaster(proc *self);
 
 #endif

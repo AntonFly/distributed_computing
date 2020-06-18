@@ -3,13 +3,13 @@
 #include <stdbool.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdio.h>
 #include "banking.h"
 #include "ipc.h"
-#include "logging.h"
 #include "process.h"
 #include "pa2345.h"
 
-void transferOrder(proc *self, Message *mesg);
+void changeBalance(proc *self, Message *mesg);
 
 void initHistory(proc *self, balance_t balance) {
     self->his.istoria.s_id = self->id;
@@ -23,7 +23,7 @@ void initHistory(proc *self, balance_t balance) {
     }
 }
 
-void closeOtherPipes(proc *self) {
+void closePipes(proc *self) {
     for (size_t src = 0; src < self->processes.procesi; src++) {
         for (size_t dest = 0; dest < self->processes.procesi; dest++) {
             if (dest == self->id && src != self->id) {
@@ -41,90 +41,76 @@ void closeOtherPipes(proc *self) {
     }
 }
 
-void goParent(proc *self) {
 
-    receiveStartedAll(self);
-
-    receiveStartedInfo(self);
-
-    bank_robbery(self, self->processes.procesi - 1);
-
-    stopAll(self);
-
-    receiveDoneAll(self);
-
-    receiveBalanceHistories(self);
-
-    print_history(&self->his.vsia_istoria);
-}
-
-void goChild(proc *self, balance_t initialBalance) {
+void goChild(proc *self, balance_t initialBalance, FILE *logFile) {
 
     initHistory(self, initialBalance);
 
-    startedAll(self);
+    startedAll(self, logFile);
 
-    receiveStartedAll(self);
+    receiveStartedAll(self, logFile);
 
     size_t left = self->processes.deti - 1;
 
-    bool b = false;
 
-    while (!b) {
+    while (true) {
         Message mesg;
         receive_any(self, &mesg);
         MessageType mesgType = mesg.s_header.s_type;
         if(mesgType== STOP){
-            b = true;
+            break;
         } else if(mesgType== TRANSFER){
-            transferOrder(self, &mesg);
+            changeBalance(self, &mesg);
         } else if(mesgType == DONE){
             left--;
         }
 
     }
 
-    doneAll(self);
+    doneAll(self,logFile);
 
     while (left > 0) {
         Message message;
         receive_any(self, &message);
         MessageType messageType = message.s_header.s_type;
         if(messageType == TRANSFER){
-            transferOrder(self, &message);
+            changeBalance(self, &message);
         } else if (messageType ==DONE ){
             left--;
         }
-//        switch (messageType) {
-//            case TRANSFER:
-//                transferOrder(self, &message);
-//                break;
-//            case DONE:
-//                left--;
-//                break;
-//            default:
-//                break;
-//        }
     }
+    fprintf(logFile,log_done_fmt, get_physical_time(), self->id,self->his.istoria.s_history[self->his.istoria.s_history_len].s_balance);
+    fprintf(stdout,log_done_fmt, get_physical_time(), self->id,self->his.istoria.s_history[self->his.istoria.s_history_len].s_balance);
 
-    logMsg('d',self);
+    self->his.istoria.s_history_len = get_physical_time() + 1;
+    size_t size_of_history = sizeof(local_id) +
+                             sizeof(uint8_t) +
+                             self->his.istoria.s_history_len * sizeof(BalanceState);
 
-    historyMaster(self);
+    Message msg = {
+            .s_header = {
+                    .s_magic = MESSAGE_MAGIC,
+                    .s_type = BALANCE_HISTORY,
+                    .s_local_time = get_physical_time(),
+                    .s_payload_len = size_of_history,
+            }
+    };
+    memcpy(&msg.s_payload, &self->his.istoria, size_of_history);
+    send(self, PARENT_ID, &msg);
 }
 
-void transferOrder(proc *self, Message *mesg)  {
+void changeBalance(proc *self, Message *mesg)  {
     BalanceHistory *history = &self->his.istoria;
     balance_t i = 0;
     TransferOrder *Order = (TransferOrder *) &(mesg->s_payload);
     timestamp_t physicalTime = get_physical_time();
 
-    if (Order->s_src == self->id) {
-
+    if (Order->s_dst != self->id) {
+        i = -Order->s_amount;
         send(&myself, Order->s_dst, mesg);
-
-        logPrintf(log_transfer_out_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_dst);
-
-    } else if (Order->s_dst == self->id) {
+        fprintf(stdout,log_transfer_out_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_dst);
+    } else {
+        i = +Order->s_amount;
         Message msg;
         msg.s_header = (MessageHeader) {
                 .s_magic = MESSAGE_MAGIC,
@@ -133,9 +119,8 @@ void transferOrder(proc *self, Message *mesg)  {
                 .s_payload_len = 0,
         };
         send(&myself, PARENT_ID, &msg);
-        logPrintf(log_transfer_in_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_src);
+        fprintf(stdout,log_transfer_in_fmt, get_physical_time(), self->id, Order->s_amount, Order->s_src);
 
-    } else {
     }
 
     if (physicalTime >= history->s_history_len) {

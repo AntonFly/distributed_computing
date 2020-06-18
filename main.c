@@ -11,24 +11,22 @@
 
 #include "banking.h"
 #include "ipc.h"
-#include "logging.h"
 #include "process.h"
 #include "messages.h"
+#include "common.h"
 
 
 int main(int argc, char const *argv[]) {
     proc *this = &myself;
 
-    if (argc >= 3 && strcmp(argv[1], "-p") == 0) {
-        this->processes.deti = strtol(argv[2], NULL, 10);
+        this->processes.deti = atoi(argv[2]);
         this->processes.procesi = this->processes.deti + 1;
 
         size_t i = 1;
         while (i <= this->processes.deti){
-            States[i] = strtol(argv[2 + i], NULL, 10);
+            States[i] = atoi(argv[2 + i]);
             i++;
         }
-    }
 
     for (size_t src = 0; src < this->processes.procesi; src++) {
         for (size_t dest = src; dest < this->processes.procesi; dest++) {
@@ -52,7 +50,7 @@ int main(int argc, char const *argv[]) {
 
     Pids[PARENT_ID] = getpid();
 
-    logInit();
+    FILE *logFile = fopen(events_log, "a");
 
     size_t id = 1;
     while (id <= this->processes.deti){
@@ -67,34 +65,53 @@ int main(int argc, char const *argv[]) {
         id++;
     }
 
+    closePipes(this);
 
 
-    if (this->id != PARENT_ID) {
-        goChild(this, States[this->id]);
+    if (this->id == PARENT_ID) {
+        receiveStartedAll(this, logFile);
+
+        bank_robbery(this, this->processes.procesi - 1);
+
+        receiveStartedInfo(this);
+
+
+        stopAll(this);
+
+        receiveDoneAll(this,logFile);
+
+        receiveBalanceHistories(this);
+
+        for (size_t j = 1; j <= this->processes.procesi; j++) {
+        }
+
+        print_history(&this->his.vsiaIstoria);
+
+        while(wait(NULL)!=-1){};
     } else {
-        goParent(this);
+        goChild(this, States[this->id], logFile);
     }
 
-    logClose(this);
-    closeOtherPipes(this);
+
+    fclose(logFile);
+
     return 0;
 }
 
 void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
-    proc *self = parent_data;
 
     Message mesg;
     {
         TransferOrder ord = {
-                .s_src = src,
-                .s_dst = dst,
                 .s_amount = mount,
+                .s_dst = dst,
+                .s_src = src,
         };
         mesg.s_header = (MessageHeader) {
-                .s_local_time = get_physical_time(),
-                .s_magic =MESSAGE_MAGIC,
-                .s_type=TRANSFER,
                 .s_payload_len = sizeof(TransferOrder),
+                .s_type=TRANSFER,
+                .s_magic =MESSAGE_MAGIC,
+                .s_local_time = get_physical_time(),
         };
         memcpy(&mesg.s_payload, &ord, sizeof(TransferOrder));
         send(parent_data, src, &mesg);
@@ -102,13 +119,5 @@ void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
 
     {
         receive(parent_data, dst, &mesg);
-        if (mesg.s_header.s_type != ACK) {
-            fprintf(stderr,
-                    "\u26A0 "  // Unicode WARNING SIGN
-                    "Ошибка процесс %d ожидал сообщение ACK [%d] "
-                    "от процесса %d, "
-                    "а получил сообщение типа [%d]\n",
-                    self->id, ACK, dst, mesg.s_header.s_type);
-        }
     }
 }
