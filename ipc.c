@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 600 /* needed for timespec in <time.h> */
+#define _XOPEN_SOURCE 600
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -9,18 +9,12 @@
 
 static size_t readExact(size_t fd, void *buf, size_t num_bytes);
 
-typedef enum {
-    INVALID_MAGIC,
-} Error;
 
 int send(void *self_void, local_id dst, const Message *msg) {
     proc *self = self_void;
 
     if (dst >= self->processes.procesi) {
         return 1;
-    }
-    if (msg->s_header.s_magic != MESSAGE_MAGIC) {
-        return INVALID_MAGIC;
     }
     write(writer[self->id][dst], &msg->s_header, sizeof(MessageHeader));
     write(writer[self->id][dst], &msg->s_payload, msg->s_header.s_payload_len);
@@ -34,7 +28,6 @@ int send_multicast(void *self_void, const Message *msg) {
         if (dst != self->id) {
             int result = send(self, dst, msg);
             if (result > 0) {
-                fprintf(stderr, "Ошибка процесс %d несмог отправить мультикаст к %d!\n", self->id, dst);
                 return result;
             }
         }
@@ -50,9 +43,6 @@ int receive(void *self_void, local_id from, Message *msg) {
     }
 
     readExact(reader[from][self->id], &msg->s_header, sizeof(MessageHeader));
-    if (msg->s_header.s_magic != MESSAGE_MAGIC) {
-        return INVALID_MAGIC;
-    }
 
     readExact(reader[from][self->id], &msg->s_payload,
               msg->s_header.s_payload_len);
@@ -60,19 +50,6 @@ int receive(void *self_void, local_id from, Message *msg) {
 }
 
 int receive_any(void *this, Message *msg) {
-//
-//    proc* sender = (proc*) this;
-//
-//    for (int i = 0; i <= sender->processes.deti; ++i)
-//    {
-//        if (i == sender->id)
-//            continue;
-//
-//        if (receive(this, i, msg) == 0)
-//            return i;
-//    }
-//    return -1;
-//}
     proc *self = (proc *) this;
     int id = self->id;
     while (true) {

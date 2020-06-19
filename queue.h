@@ -6,43 +6,43 @@
 #define LAB5_QUEUE_H
 #include "ipc.h"
 
-typedef struct request_node request_node;
+typedef struct rNode rNode;
 
-struct request_node
+struct rNode
 {
     local_id id;
     timestamp_t time;
 
-    request_node* next;
-    request_node* prev;
+    rNode* next;
+    rNode* prev;
 
 };
 
-typedef struct lamport_queue
+typedef struct lQueue
 {
-    request_node* top;
-    request_node* bottom;
+    rNode* top;
+    rNode* bottom;
 
     size_t size;
 
-} lamport_queue;
+} lQueue;
 
-lamport_queue* queue;
+lQueue* queue;
 
-void init_queue();
+void initQ();
 
-void delete_queue();
+void deleteQ();
 
-int comp(request_node* t1, request_node* t2);
+int comp(rNode* t1, rNode* t2);
 
-request_node* top();
+rNode* top();
 
-void del_top();
+void dTop();
 
-void insert(local_id id, timestamp_t time);
+void add(local_id id, timestamp_t time);
 
-int is_empty();
+int isQempty();
 
-size_t queue_size();
+size_t qSize();
 
 #endif //LAB5_QUEUE_H

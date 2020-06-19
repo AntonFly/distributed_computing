@@ -31,6 +31,7 @@ typedef struct {
     mount_p processes;
     BalanceState balance;
     int done;
+    bool is_defer[MAX_PROCESS_ID + 1];
 } proc;
 
 enum {
@@ -59,7 +60,7 @@ void set_lamport_time(timestamp_t new_time);
 
 void up_time();
 
-timestamp_t compare_lamport_times(timestamp_t t1, timestamp_t t2, local_id i1, local_id i2);
+timestamp_t cpmLTime(timestamp_t t1, timestamp_t t2, local_id i1, local_id i2);
 
 void updateHistory(balance_t balanse,timestamp_t time, proc *self);
 

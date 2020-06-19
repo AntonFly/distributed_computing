@@ -11,8 +11,9 @@ add_executable(peer
         common.h
         ipc.h
         banking.h
+        queue.c
+        queue.h
         pa2345.h
-        bank_robbery.c
         messages.c
         process.c
         critical.c queue.c queue.h)

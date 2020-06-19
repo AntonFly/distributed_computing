@@ -21,10 +21,6 @@ void startedAll(proc *self,FILE *logFile) {
             },
     };
 
-//    fprintf(stdout, log_started_fmt, time, self->id, getpid(),
-//            getppid(),self->his.istoria.s_history[time].s_balance);
-//    fprintf(logFile, log_started_fmt, time, self->id, getpid(),
-//        getppid(),self->his.istoria.s_history[time].s_balance);
 
     msg.s_header.s_payload_len = strlen(msg.s_payload);
     send_multicast(&myself, &msg);
@@ -37,7 +33,7 @@ void receiveStartedAll(proc *self,FILE *logFile) {
             continue;
         }
         receive(&myself, i, &msg);
-        set_lamport_time(compare_lamport_times(get_lamport_time(),msg.s_header.s_local_time,0,0));
+        set_lamport_time(cpmLTime(get_lamport_time(), msg.s_header.s_local_time, 0, 0));
         up_time();
     }
     fprintf(stdout,log_received_all_started_fmt, get_lamport_time(), self->id);
@@ -56,8 +52,6 @@ void doneAll(proc *self,FILE *logFile) {
                 .s_payload_len = 0,
             },
     };
-//    fprintf(logFile, log_done_fmt, time, self->id, self->his.istoria.s_history[self->his.istoria.s_history_len].s_balance);
-//    fprintf(stdout, log_done_fmt, time, self->id, self->his.istoria.s_history[self->his.istoria.s_history_len].s_balance);
     msg.s_header.s_payload_len = strlen(msg.s_payload);
     send_multicast(&myself, &msg);
 }
@@ -69,11 +63,11 @@ void receiveDoneAll(proc *self, FILE *logFile) {
         }
         Message msg;
         receive(&myself, i, &msg);
-        set_lamport_time(compare_lamport_times(get_lamport_time(),msg.s_header.s_local_time,0,0));
+        set_lamport_time(cpmLTime(get_lamport_time(), msg.s_header.s_local_time, 0, 0));
         up_time();
     }
-//    fprintf(logFile, log_done_fmt, get_lamport_time(), self->id,self->his.istoria.s_history[self->his.istoria.s_history_len].s_balance);
-//    fprintf(stdout, log_done_fmt, get_lamport_time(), self->id,self->his.istoria.s_history[self->his.istoria.s_history_len].s_balance);
+        fprintf(logFile, log_received_all_done_fmt, get_lamport_time(), self->id);
+        fprintf(stdout, log_received_all_done_fmt, get_lamport_time(), self->id);
 }
 
 void stopAll(proc *self) {
@@ -92,17 +86,10 @@ void stopAll(proc *self) {
 
 
 void receiveBalanceHistories(proc *self) {
-//    self->his.vsiaIstoria.s_history_len = self->processes.deti;
     for (size_t child = 1; child <= self->processes.deti; child++) {
         Message msg;
         receive(&myself, child, &msg);
-        set_lamport_time(compare_lamport_times(get_lamport_time(),msg.s_header.s_local_time,0,0));
+        set_lamport_time(cpmLTime(get_lamport_time(), msg.s_header.s_local_time, 0, 0));
         up_time();
-//        int16_t msg_type = msg.s_header.s_type;
-//        if (msg_type != BALANCE_HISTORY) {
-//        } else {
-////            BalanceHistory *their_history = (BalanceHistory *) &msg.s_payload;
-////            self->his.vsiaIstoria.s_history[child - 1] = *their_history;
-//        }
     }
 }

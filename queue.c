@@ -5,18 +5,18 @@
 #include <stdio.h>
 #include "queue.h"
 
-void init_queue()
+void initQ()
 {
-    queue = (lamport_queue*) malloc(sizeof(lamport_queue));
+    queue = (lQueue*) malloc(sizeof(lQueue));
     queue -> size = 0;
 }
 
 
-void delete_queue()
+void deleteQ()
 {
     if(queue -> size != 0)
     {
-        request_node* node = queue -> top;
+        rNode* node = queue -> top;
 
         for(int i = 0; i < queue->size - 1; i++)
         {
@@ -31,29 +31,33 @@ void delete_queue()
 
 }
 
-/*
-    1 if t1 have higher priority
-*/
-int comp(request_node* t1, request_node* t2)
-{
-    if( t1->time == t2->time)
-        return t1->id > t2->id ? 1 : 0;
-
-    return t1->time > t2->time ? 1 : 0;
+int comp(rNode* t1, rNode* t2) {
+    if (t1->time == t2->time){
+        if (t1->id > t2->id) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    if (t1->time > t2->time) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
-request_node* top()
+rNode* top()
 {
-    request_node* node = (request_node*) malloc(sizeof(request_node));
+    rNode* node = (rNode*) malloc(sizeof(rNode));
     node -> id = queue->top->id;
     node -> time = queue->top->time;
 
     return node;
 }
 
-void del_top()
+void dTop()
 {
-    request_node* node = queue->top;
+    rNode* node = queue->top;
 
     if(queue->size == 1)
     {
@@ -72,9 +76,9 @@ void del_top()
     free(node);
 }
 
-void insert(local_id id, timestamp_t time)
+void add(local_id id, timestamp_t time)
 {
-    request_node* node = (request_node*) malloc(sizeof(request_node));
+    rNode* node = (rNode*) malloc(sizeof(rNode));
 
     node -> id = id;
     node -> time = time;
@@ -90,7 +94,7 @@ void insert(local_id id, timestamp_t time)
         return;
     }
 
-    request_node* cur_node = queue -> top;
+    rNode* cur_node = queue -> top;
 
     for (int i = 0; i <= queue -> size; i++)
     {
@@ -125,12 +129,12 @@ void insert(local_id id, timestamp_t time)
     queue -> size++;
 }
 
-int is_empty()
+int isQempty()
 {
     return queue == 0;
 }
 
-size_t queue_size()
+size_t qSize()
 {
     return queue -> size;
 }

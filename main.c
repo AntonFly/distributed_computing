@@ -23,11 +23,11 @@ int main(int argc, char const *argv[]) {
         this->processes.deti = atoi(argv[2]);
         this->processes.procesi = this->processes.deti + 1;
 
-        if(strcmp(argv[3],"--mutexl")==0){
+        if(argc > 3 && strcmp(argv[3],"--mutexl")==0){
             m=1;
         }
-//        size_t i = 1;
 
+    FILE *pippeF = fopen(pipes_log, "a");
 
     for (size_t src = 0; src < this->processes.procesi; src++) {
         for (size_t dest = src; dest < this->processes.procesi; dest++) {
@@ -38,16 +38,19 @@ int main(int argc, char const *argv[]) {
                 fcntl(original[1], F_SETFL, O_NONBLOCK);
                 reader[src][dest] = original[0];
                 writer[src][dest] = original[1];
+                fprintf(pippeF, "Opened for read - %d and  write - %d\n", original[0], original[1]);
                 int reverse[2];
                 pipe(reverse);
                 fcntl(reverse[0], F_SETFL, O_NONBLOCK);
                 fcntl(reverse[1], F_SETFL, O_NONBLOCK);
                 reader[dest][src] = reverse[0];
                 writer[dest][src] = reverse[1];
+                fprintf(pippeF, "Opened for read - %d and  write - %d\n", reverse[0], reverse[1]);
             }
         }
     }
 
+    fclose(pippeF);
 
     Pids[PARENT_ID] = getpid();
 
@@ -71,11 +74,9 @@ int main(int argc, char const *argv[]) {
 
     if (this->id == PARENT_ID) {
         receiveStartedAll(this, logFile);
-//        bank_robbery(this, this->processes.procesi - 1);
         receiveStartedInfo(this);
 
 
-//        stopAll(this);
 
         receiveDoneAll(this,logFile);
 
@@ -83,17 +84,20 @@ int main(int argc, char const *argv[]) {
 
         for (size_t j = 1; j <= this->processes.procesi; j++) {
         }
-
-
         while(wait(NULL)!=-1){};
+
+        receiveDoneAll(this,logFile);
+
+
     } else {
         goChild(this,logFile,m);
     }
 
 
     fclose(logFile);
-
+    exit(0);
     return 0;
+
 }
 
 void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
@@ -118,7 +122,7 @@ void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
 
     {
         receive(parent_data, dst, &mesg);
-        set_lamport_time(compare_lamport_times(get_lamport_time(),mesg.s_header.s_local_time,0,0));
+        set_lamport_time(cpmLTime(get_lamport_time(),mesg.s_header.s_local_time,0,0));
         up_time();
     }
 }
