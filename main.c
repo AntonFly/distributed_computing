@@ -16,17 +16,18 @@
 #include "common.h"
 
 
+
 int main(int argc, char const *argv[]) {
     proc *this = &myself;
-
+        int m=0;
         this->processes.deti = atoi(argv[2]);
         this->processes.procesi = this->processes.deti + 1;
 
-        size_t i = 1;
-        while (i <= this->processes.deti){
-            States[i] = atoi(argv[2 + i]);
-            i++;
+        if(strcmp(argv[3],"--mutexl")==0){
+            m=1;
         }
+//        size_t i = 1;
+
 
     for (size_t src = 0; src < this->processes.procesi; src++) {
         for (size_t dest = src; dest < this->processes.procesi; dest++) {
@@ -70,13 +71,11 @@ int main(int argc, char const *argv[]) {
 
     if (this->id == PARENT_ID) {
         receiveStartedAll(this, logFile);
-
-        bank_robbery(this, this->processes.procesi - 1);
-
+//        bank_robbery(this, this->processes.procesi - 1);
         receiveStartedInfo(this);
 
 
-        stopAll(this);
+//        stopAll(this);
 
         receiveDoneAll(this,logFile);
 
@@ -85,11 +84,10 @@ int main(int argc, char const *argv[]) {
         for (size_t j = 1; j <= this->processes.procesi; j++) {
         }
 
-        print_history(&this->his.vsiaIstoria);
 
         while(wait(NULL)!=-1){};
     } else {
-        goChild(this, States[this->id], logFile);
+        goChild(this,logFile,m);
     }
 
 
@@ -100,6 +98,7 @@ int main(int argc, char const *argv[]) {
 
 void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
 
+    up_time();
     Message mesg;
     {
         TransferOrder ord = {
@@ -111,7 +110,7 @@ void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
                 .s_payload_len = sizeof(TransferOrder),
                 .s_type=TRANSFER,
                 .s_magic =MESSAGE_MAGIC,
-                .s_local_time = get_physical_time(),
+                .s_local_time = get_lamport_time(),
         };
         memcpy(&mesg.s_payload, &ord, sizeof(TransferOrder));
         send(parent_data, src, &mesg);
@@ -119,5 +118,7 @@ void transfer(void *parent_data, local_id src, local_id dst, balance_t mount) {
 
     {
         receive(parent_data, dst, &mesg);
+        set_lamport_time(compare_lamport_times(get_lamport_time(),mesg.s_header.s_local_time,0,0));
+        up_time();
     }
 }

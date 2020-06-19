@@ -60,6 +60,19 @@ int receive(void *self_void, local_id from, Message *msg) {
 }
 
 int receive_any(void *this, Message *msg) {
+//
+//    proc* sender = (proc*) this;
+//
+//    for (int i = 0; i <= sender->processes.deti; ++i)
+//    {
+//        if (i == sender->id)
+//            continue;
+//
+//        if (receive(this, i, msg) == 0)
+//            return i;
+//    }
+//    return -1;
+//}
     proc *self = (proc *) this;
     int id = self->id;
     while (true) {
@@ -90,7 +103,7 @@ int receive_any(void *this, Message *msg) {
         read(srcFile, msg->s_payload, msg->s_header.s_payload_len);
 
         fcntl(srcFile, F_SETFL, flags | O_NONBLOCK);
-        return 0;
+        return id;
     }
 }
 

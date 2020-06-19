@@ -15,7 +15,7 @@ add_executable(peer
         bank_robbery.c
         messages.c
         process.c
-        )
+        critical.c queue.c queue.h)
 
 find_library(libruntime libruntime.so paths ${PROJECT_SOURCE_DIR}/lib64/)
 #target_link_libraries(peer ${libruntime})

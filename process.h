@@ -30,6 +30,7 @@ typedef struct {
     history his;
     mount_p processes;
     BalanceState balance;
+    int done;
 } proc;
 
 enum {
@@ -42,14 +43,25 @@ size_t reader[MAX_PROCESSES][MAX_PROCESSES];
 size_t writer[MAX_PROCESSES][MAX_PROCESSES];
 
 pid_t Pids[MAX_PROCESSES];
-balance_t States[MAX_PROCESSES];
+//balance_t States[MAX_PROCESSES];
 
 void initHistory(proc *self, balance_t initial_balance);
 
-void goChild(proc *self, balance_t initialBalance, FILE *logFile);
+void goChild(proc *self, FILE *logFile,int m);
 
 void closePipes(proc *self);
 
 void receiveStartedInfo(proc *self);
+
+timestamp_t get_lamport_time();
+
+void set_lamport_time(timestamp_t new_time);
+
+void up_time();
+
+timestamp_t compare_lamport_times(timestamp_t t1, timestamp_t t2, local_id i1, local_id i2);
+
+void updateHistory(balance_t balanse,timestamp_t time, proc *self);
+
 
 #endif
