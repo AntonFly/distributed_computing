@@ -12,10 +12,6 @@
 
 static timestamp_t lTime = 0;
 
-void do_mutex_work(proc *self,int m);
-
-void do_work(proc *self);
-
 
 void closePipes(proc *self) {
     for (size_t src = 0; src < self->processes.procesi; src++) {
@@ -41,38 +37,29 @@ void goChild(proc *self, FILE *logFile,int m) {
     startedAll(self, logFile);
     receiveStartedAll(self, logFile);
 
-//    char tmp[64];
-    do_mutex_work(self,m);
-//    if(m==1)
-//    {
-//        initQ();
-//        request_cs(self);
-//    }
-//
-//
-//
-//    for( int i = 1; i <= self->id * 5; i++)
-//    {
-//        memset(tmp, 0, sizeof(tmp));
-//        sprintf(tmp, log_loop_operation_fmt, self -> id, i, self->id * 5);
-////        print(tmp);
-//        print(tmp);
-//
-//    }
-//    memset(tmp, 0, sizeof(tmp));
-//    sprintf(tmp, log_loop_operation_fmt, 82 ,5,  5);
-////        print(tmp);
-//    print(tmp);
-//
-//
-//
-//
-//    if(m==1)
-//    {
-//        release_cs(self);
-//
-//        deleteQ();
-//    }
+    char tmp[64];
+    if(m==1)
+    {
+        initQ();
+        request_cs(self);
+    }
+
+
+    for( int i = 1; i <= self->id * 5; i++)
+    {
+        memset(tmp, 0, sizeof(tmp));
+        sprintf(tmp, log_loop_operation_fmt, self -> id, i, self->id * 5);
+        print(tmp);
+
+    }
+
+
+    if(m==1)
+    {
+        release_cs(self);
+
+        deleteQ();
+    }
 
 
     doneAll(self,logFile);
@@ -130,27 +117,6 @@ timestamp_t cpmLTime(timestamp_t t1, timestamp_t t2, local_id i1, local_id i2)
 }
 
 
-void do_mutex_work(proc *self,int m) {
-    if (m==1) {
-        initQ();
-        request_cs(self);
-    }
 
-    do_work(self);
 
-    if (m==1) {
-        release_cs(self);
-        deleteQ();
-    }
-}
 
-void do_work(proc *self) {
-    char str[128];
-    int num = self->id * 5;
-
-    for (int i = 1; i <= num; ++i) {
-        memset(str, 0, sizeof(str));
-        sprintf(str, log_loop_operation_fmt, self->id, i, num);
-        print(str);
-    }
-}

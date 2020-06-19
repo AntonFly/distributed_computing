@@ -4,51 +4,73 @@
 
 #include "ipc.h"
 #include "process.h"
-#include "queue.h"
+
+int available(const void * self);
+
+static int forks[MAX_PROCESSES];
+static int dirty[MAX_PROCESSES];
+static int waiting_for_fork[MAX_PROCESSES];
 
 int request_cs(const void * self)
 {
+
     proc* this = (proc*) self;
-    up_time();
-    timestamp_t rTime = get_lamport_time();
-    Message* msg = (Message*) malloc(sizeof(Message));
+    int i =this->id;
+    while(i<this->processes.procesi)
+    {
+        if (i != this->id) {
+            waiting_for_fork[i] = 0;
+            dirty[i] = forks[i] = 1;
+        } else {
+            waiting_for_fork[i] = 2;
+            dirty[i] = forks[i] = 2;
+        }
+        i++;
+    }
+    Message msg = {
+            .s_header =
+                    {
+                            .s_magic = MESSAGE_MAGIC,
+                            .s_type = CS_REQUEST,
+                            .s_payload_len = 0,
+                    },
+    };
+    int j =1;
+    while(j<this->processes.procesi){
+        if(forks[j]==0){
+            up_time();
 
-    msg->s_header.s_magic = MESSAGE_MAGIC;
-    msg->s_header.s_payload_len = 0;
-    msg->s_header.s_type = CS_REQUEST;
-    msg->s_header.s_local_time = get_lamport_time();
-
-    send_multicast(this, msg);
+            msg.s_header.s_local_time = get_lamport_time();
+            send(this, j, &msg);
+            waiting_for_fork[j]=0;
+        }
+        j++;
+    }
 
     local_id msgFrom;
-    int wait = this->processes.deti - 1;
 
-    while(wait > 0)
+    while(available(this) == 0)
     {
-        if((msgFrom = receive_any(this, msg)) == -1)
+        if((msgFrom = receive_any(this, &msg)) == -1)
             continue;
-        set_lamport_time(cpmLTime(get_lamport_time(), msg->s_header.s_local_time, 0, 0));
+        set_lamport_time(cpmLTime(get_lamport_time(), msg.s_header.s_local_time, 0, 0));
         up_time();
 
-        switch(msg->s_header.s_type)
+        switch(msg.s_header.s_type)
         {
             case CS_REQUEST:
-                if(rTime > msg->s_header.s_local_time ||
-                   (rTime == msg->s_header.s_local_time && this->id < msgFrom))
-                {
+                waiting_for_fork[msgFrom]=1;
+                if(dirty[msgFrom]==1){
+                    dirty[msgFrom]=0;
+                    forks[msgFrom]=0;
                     up_time();
-                    msg->s_header.s_type = CS_REPLY;
-                    msg->s_header.s_local_time = get_lamport_time();
-
-                    send(this, msgFrom, msg);
-                }
-                else
-                {
-                    add(msgFrom, msg->s_header.s_local_time);
+                    msg.s_header.s_local_time =  get_lamport_time();
+                    msg.s_header.s_type = CS_REPLY;
+                    send(this, msgFrom, &msg);
                 }
                 break;
             case CS_REPLY:
-                wait--;
+                forks[msgFrom]=1;
                 break;
             case DONE:
                 this -> done++;
@@ -66,22 +88,27 @@ int request_cs(const void * self)
 int release_cs(const void * self)
 {
     proc* this = (proc*) self;
-
-    Message* msg = (Message*) malloc(sizeof(Message));
-
-    msg->s_header.s_magic = MESSAGE_MAGIC;
-    msg->s_header.s_payload_len = 0;
-    msg->s_header.s_type = CS_REPLY;
-    while(qSize() >0)
-    {
+    Message msg = {
+            .s_header =
+                    {
+                            .s_magic = MESSAGE_MAGIC,
+                            .s_type = CS_REPLY,
+                            .s_payload_len = 0,
+                    },
+    };
+    for(int i = 1; i< this->processes.procesi; i++){
         up_time();
-        msg->s_header.s_local_time = get_lamport_time();
-
-        send(this, (top() -> id), msg);
-
-        dTop();
-
+        msg.s_header.s_local_time =  get_lamport_time();
+        if(i!=this->id) send(this, i, &msg);
     }
-
     return 0;
+}
+
+int available(const void * self){
+    proc* this = (proc*) self;
+    for(int i = 1; i < this->processes.procesi; i++){
+        if (0 == forks[i] || 1 == dirty[i])
+            return 0;
+    }
+    return 1;
 }
