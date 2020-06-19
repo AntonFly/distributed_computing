@@ -20,12 +20,26 @@
 int main(int argc, char const *argv[]) {
     proc *this = &myself;
         int m=0;
-        this->processes.deti = atoi(argv[2]);
-        this->processes.procesi = this->processes.deti + 1;
+//        this->processes.deti = atoi(argv[3]);
+//        this->processes.procesi = this->processes.deti + 1;
+//
+//        if(argc > 3 && strcmp(argv[2],"--mutexl")==0){
+//            m=1;
+//        }
+    int a = 1;
+    while (a < argc) {
+        if (strcmp(argv[a], "--mutexl") == 0) {
+            m = 1;
 
-        if(argc > 3 && strcmp(argv[3],"--mutexl")==0){
-            m=1;
-        }
+        } else if (strcmp(argv[a], "-p") == 0) {
+            a++;
+                this->processes.deti = strtol(argv[a], NULL, 10);
+                this->processes.procesi = this->processes.deti + 1;
+
+
+            }
+        a++;
+    }
 
     FILE *pippeF = fopen(pipes_log, "a");
 
